@@ -102,6 +102,7 @@ export const NOTIF_TYPE = {
   CARD_EXPIRING: "CARD_EXPIRING",
   ACCOUNT_SUSPENDED: "ACCOUNT_SUSPENDED",
   ADD_CARD: "ADD_CARD",
+  CONTACT_MESSAGE: "CONTACT_MESSAGE",
 } as const;
 
 // A user can be assigned walks if they are an admin or an active worker.

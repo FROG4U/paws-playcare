@@ -24,6 +24,7 @@ const ICON: Record<string, { icon: string; tone: string }> = {
   [N.PAYMENT_FAILED]: { icon: "alert", tone: "bg-danger/10 text-danger" },
   [N.CARD_EXPIRING]: { icon: "card", tone: "bg-warn/15 text-warn" },
   [N.ADD_CARD]: { icon: "card", tone: "bg-brand-soft text-brand" },
+  [N.CONTACT_MESSAGE]: { icon: "mail", tone: "bg-brand-soft text-brand" },
 };
 
 export async function NotificationsList({

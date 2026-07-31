@@ -127,7 +127,51 @@ model Setting {
   unpaidGraceDays      Int    @default(7)
   cardExpiryWarnDays   Int    @default(30)
   bankHolidayDivision  String @default("england-and-wales")
+
+  // Public site info (footer / contact)
+  siteName        String  @default("Paws Playcare")
+  tagline         String  @default("Walk and play makes a dog's day!")
+  contactEmail    String  @default("")
+  contactPhone    String  @default("")
+  address         String  @default("Watford")
+  facebookUrl     String  @default("")
+  instagramUrl    String  @default("")
+
   updatedAt            DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// CMS: editable public marketing pages (admin → Pages)
+// ---------------------------------------------------------------------------
+model Page {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  navLabel    String
+  title       String
+  heroImage   String?
+  heroHeading String?
+  heroSub     String?
+  body        String  @default("") // Markdown
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+
+  showInNav Boolean @default(true)
+  navOrder  Int     @default(0)
+  published Boolean @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+// Contact form submissions (spam-protected: honeypot + timing).
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model HolidayRate {

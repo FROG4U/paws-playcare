@@ -197,6 +197,19 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M16 17l5-5-5-5M21 12H9" />
     </>
   ),
+  file: (
+    <>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 3v5h5M9 13h6M9 17h5" />
+    </>
+  ),
+  image: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="9.5" r="1.5" />
+      <path d="M4 17l5-5 4 4 3-3 4 4" />
+    </>
+  ),
 };
 
 export function Icon({

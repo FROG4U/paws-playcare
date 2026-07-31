@@ -82,3 +82,30 @@ body {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
 }
+
+/* Rendered markdown (public pages) */
+.prose-site {
+  @apply text-[1.05rem] leading-relaxed text-foreground/90;
+}
+.prose-site h2 {
+  @apply mt-8 mb-3 text-2xl font-extrabold tracking-tight text-foreground first:mt-0;
+}
+.prose-site h3 {
+  @apply mt-6 mb-2 text-lg font-bold text-foreground;
+}
+.prose-site p {
+  @apply my-3;
+}
+.prose-site ul {
+  @apply my-3 list-disc space-y-1.5 pl-5;
+}
+.prose-site ol {
+  @apply my-3 list-decimal space-y-1.5 pl-5;
+}
+.prose-site a {
+  @apply font-semibold text-brand underline;
+}
+.prose-site strong {
+  @apply font-bold text-foreground;
+}
+
