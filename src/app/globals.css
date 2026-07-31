@@ -3,15 +3,19 @@
 /* Paws Playcare brand system — raw vars in :root so var(--brand) works in
    arbitrary values, mapped into Tailwind theme tokens via @theme inline. */
 :root {
-  --background: #f6f8f7;
+  --background: #f4f7fa;
   --surface: #ffffff;
-  --foreground: #17251f;
-  --muted: #5d6f68;
-  --brand: #1f8a70;
-  --brand-dark: #156a56;
-  --brand-soft: #e3f2ec;
-  --accent: #f39a3e;
-  --border: #e2e8e4;
+  --foreground: #23292f;
+  --muted: #5f6b76;
+  /* Paws Playcare real brand: sky blue + charcoal */
+  --brand: #2ea6d8;
+  --brand-dark: #1f88b8;
+  --brand-soft: #e2f2fb;
+  --accent: #2ea6d8;
+  --charcoal: #333a41;
+  --mist: #eaeef4;
+  --slate: #4b5563;
+  --border: #e3e8ee;
   --danger: #dc2626;
   --success: #16a34a;
   --warn: #d97706;
@@ -26,6 +30,9 @@
   --color-brand-dark: var(--brand-dark);
   --color-brand-soft: var(--brand-soft);
   --color-accent: var(--accent);
+  --color-charcoal: var(--charcoal);
+  --color-mist: var(--mist);
+  --color-slate: var(--slate);
   --color-border: var(--border);
   --color-danger: var(--danger);
   --color-success: var(--success);

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "./Logo";
 import { Icon } from "./Icon";
+import { SiteNav, type SiteNavItem } from "./SiteNav";
 import { getNavPages } from "@/lib/pages";
 import { getSettings } from "@/lib/pricing";
 import { getSession } from "@/lib/auth";
@@ -17,52 +18,39 @@ export async function SiteHeader() {
       ? "/client"
       : null;
 
+  const items: SiteNavItem[] = [
+    ...nav.map((p) => ({
+      href: p.slug === "home" ? "/" : `/${p.slug}`,
+      label: p.navLabel,
+    })),
+    { href: "/terms", label: "T&Cs" },
+    { href: "/online-booking-form", label: "Booking Form" },
+  ];
+
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5">
-        <Link href="/" aria-label="Paws Playcare home">
-          <Logo className="text-xl" />
-        </Link>
-        <nav className="hidden items-center gap-1 md:flex">
-          {nav.map((p) => (
-            <Link
-              key={p.slug}
-              href={p.slug === "home" ? "/" : `/${p.slug}`}
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-muted transition hover:bg-brand-soft hover:text-brand-dark"
-            >
-              {p.navLabel}
-            </Link>
-          ))}
-        </nav>
-        <div className="flex items-center gap-2">
-          {accountHref ? (
-            <Link href={accountHref} className="btn-primary">
-              My account
-            </Link>
-          ) : (
-            <>
-              <Link href="/PPC" className="hidden text-sm font-semibold text-muted hover:text-brand-dark sm:inline">
-                Staff
+    <header className="sticky top-0 z-30">
+      {/* Logo strip */}
+      <div className="bg-surface">
+        <div className="relative mx-auto flex max-w-6xl items-center justify-center px-5 py-4">
+          <Link href="/" aria-label="Paws Playcare home">
+            <Logo className="text-2xl" />
+          </Link>
+          <div className="absolute right-5">
+            {accountHref ? (
+              <Link href={accountHref} className="text-sm font-semibold text-brand hover:underline">
+                My account
               </Link>
-              <Link href="/online-booking-form" className="btn-primary">
-                <Icon name="calendar" className="h-4 w-4" />
-                Book / Log in
+            ) : (
+              <Link href="/PPC" className="hidden text-sm font-semibold text-muted hover:text-brand sm:inline">
+                Staff login
               </Link>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
-      {/* Mobile nav */}
-      <nav className="flex gap-1 overflow-x-auto border-t border-border px-3 py-2 md:hidden">
-        {nav.map((p) => (
-          <Link
-            key={p.slug}
-            href={p.slug === "home" ? "/" : `/${p.slug}`}
-            className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold text-muted hover:bg-brand-soft"
-          >
-            {p.navLabel}
-          </Link>
-        ))}
+      {/* Charcoal nav bar */}
+      <nav className="bg-charcoal">
+        <SiteNav items={items} />
       </nav>
     </header>
   );
@@ -71,18 +59,18 @@ export async function SiteHeader() {
 export async function SiteFooter() {
   const [nav, s] = await Promise.all([getNavPages(), getSettings()]);
   return (
-    <footer className="mt-16 border-t border-border bg-surface">
-      <div className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-12 sm:grid-cols-3">
+    <footer className="mt-20 bg-slate text-white/90">
+      <div className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-14 sm:grid-cols-3">
         <div className="space-y-2">
-          <Logo className="text-lg" />
-          <p className="text-sm text-muted">{s.tagline}</p>
+          <Logo className="text-lg text-white" />
+          <p className="text-sm text-white/70">{s.tagline}</p>
         </div>
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted/70">Pages</p>
-          <ul className="space-y-1.5">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-white/50">Pages</p>
+          <ul className="space-y-2">
             {nav.map((p) => (
               <li key={p.slug}>
-                <Link href={p.slug === "home" ? "/" : `/${p.slug}`} className="text-sm text-muted hover:text-brand-dark">
+                <Link href={p.slug === "home" ? "/" : `/${p.slug}`} className="text-sm text-white/80 hover:text-white">
                   {p.navLabel}
                 </Link>
               </li>
@@ -90,8 +78,8 @@ export async function SiteFooter() {
           </ul>
         </div>
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted/70">Get in touch</p>
-          <ul className="space-y-1.5 text-sm text-muted">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-white/50">Get in touch</p>
+          <ul className="space-y-2 text-sm text-white/80">
             {s.contactEmail && (
               <li className="flex items-center gap-2"><Icon name="mail" className="h-4 w-4" />{s.contactEmail}</li>
             )}
@@ -104,8 +92,8 @@ export async function SiteFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-border py-5 text-center text-xs text-muted">
-        © {new Date().getFullYear()} {s.siteName} · Dog walking &amp; play
+      <div className="border-t border-white/10 py-5 text-center text-xs text-white/60">
+        <Link href="/terms" className="hover:text-white">Terms &amp; Conditions</Link> · © {new Date().getFullYear()} {s.siteName}. All rights reserved.
       </div>
     </footer>
   );
@@ -121,21 +109,21 @@ export function PageHero({
   image?: string | null;
 }) {
   return (
-    <section className="relative overflow-hidden border-b border-border bg-brand-soft">
-      {image && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+    <section className="relative overflow-hidden">
+      {image ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-black/45" />
+        </>
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-brand to-brand-dark" />
       )}
-      <div className={`absolute inset-0 ${image ? "bg-brand-dark/55" : ""}`} />
-      <div className="relative mx-auto w-full max-w-4xl px-5 py-16 text-center sm:py-24">
-        <h1 className={`text-3xl font-extrabold tracking-tight sm:text-5xl ${image ? "text-white" : "text-brand-dark"}`}>
+      <div className="relative mx-auto w-full max-w-4xl px-5 py-20 text-center sm:py-28">
+        <h1 className="text-4xl font-extrabold tracking-tight text-white drop-shadow sm:text-6xl">
           {heading}
         </h1>
-        {sub && (
-          <p className={`mx-auto mt-3 max-w-2xl text-lg ${image ? "text-white/90" : "text-brand-dark/80"}`}>
-            {sub}
-          </p>
-        )}
+        {sub && <p className="mx-auto mt-4 max-w-2xl text-lg text-white/90">{sub}</p>}
       </div>
     </section>
   );

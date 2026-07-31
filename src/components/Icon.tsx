@@ -210,6 +210,22 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M4 17l5-5 4 4 3-3 4 4" />
     </>
   ),
+  car: (
+    <>
+      <path d="M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7a2 2 0 0 1 1.9 1.3L19 11" />
+      <path d="M3 11h18v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5Z" />
+      <path d="M6.5 14h.01M17.5 14h.01" />
+    </>
+  ),
+  shield: (
+    <path d="M12 3l7 3v5c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z" />
+  ),
+  shieldCheck: (
+    <>
+      <path d="M12 3l7 3v5c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z" />
+      <path d="M9 11.5l2 2 4-4.5" />
+    </>
+  ),
 };
 
 export function Icon({
