@@ -4,7 +4,7 @@ import { formatDate } from "@/lib/dates";
 import { NOTIF_TYPE } from "@/lib/constants";
 import { PageHeader, EmptyState } from "./ui";
 import { Icon } from "./Icon";
-import { MarkAllReadButton } from "./MarkAllReadButton";
+import { AutoMarkRead } from "./AutoMarkRead";
 
 const N = NOTIF_TYPE;
 const ICON: Record<string, { icon: string; tone: string }> = {
@@ -39,15 +39,12 @@ export async function NotificationsList({
     take: 100,
   });
 
+  const hasUnread = notifs.some((n) => !n.read);
+
   return (
     <div className="space-y-4">
-      <PageHeader
-        icon="bell"
-        title="Notifications"
-        action={
-          notifs.some((n) => !n.read) ? <MarkAllReadButton path={basePath} /> : undefined
-        }
-      />
+      <AutoMarkRead path={basePath} hasUnread={hasUnread} />
+      <PageHeader icon="bell" title="Notifications" />
 
       {notifs.length === 0 ? (
         <EmptyState icon="bell" title="Nothing new">
