@@ -20,6 +20,12 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M8 3v3M16 3v3M3 9.5h18" />
     </>
   ),
+  calendarCheck: (
+    <>
+      <rect x="3" y="4.5" width="18" height="17" rx="2" />
+      <path d="M8 3v3M16 3v3M3 9.5h18M9 15l2 2 4-4" />
+    </>
+  ),
   check: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -39,6 +45,13 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M3 20a6 6 0 0 1 12 0" />
       <path d="M16 5.2a3.5 3.5 0 0 1 0 6.6" />
       <path d="M18 14.6a6 6 0 0 1 3 5.4" />
+    </>
+  ),
+  userPlus: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M18 8v6M15 11h6" />
     </>
   ),
   footprints: (
@@ -88,10 +101,100 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M2.5 10h19M6 15h4" />
     </>
   ),
+  pound: (
+    <>
+      <path d="M9 20V9.5A3.5 3.5 0 0 1 15.5 7.8" />
+      <path d="M7 13.5h6.5M7 20h10.5" />
+    </>
+  ),
+  coins: (
+    <>
+      <ellipse cx="8.5" cy="7" rx="5.5" ry="3" />
+      <path d="M3 7v4c0 1.7 2.5 3 5.5 3" />
+      <ellipse cx="15.5" cy="14" rx="5.5" ry="3" />
+      <path d="M10 14v3c0 1.7 2.5 3 5.5 3s5.5-1.3 5.5-3v-3" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  hourglass: (
+    <>
+      <path d="M6 3h12v3l-6 6 6 6v3H6v-3l6-6-6-6V3Z" />
+    </>
+  ),
   bell: (
     <>
       <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
       <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" />
+    </>
+  ),
+  plus: <path d="M12 5v14M5 12h14" />,
+  x: <path d="M6 6l12 12M18 6 6 18" />,
+  pencil: (
+    <>
+      <path d="M4 20h4l10.5-10.5a1.5 1.5 0 0 0 0-2.1l-1.9-1.9a1.5 1.5 0 0 0-2.1 0L4 16v4Z" />
+      <path d="M13.5 6.5l4 4" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16M10 11v6M14 11v6" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+    </>
+  ),
+  chevronRight: <path d="M9 6l6 6-6 6" />,
+  arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
+  alert: (
+    <>
+      <path d="M12 3 2.5 20h19L12 3Z" />
+      <path d="M12 9.5v4.5M12 17.5h.01" />
+    </>
+  ),
+  ban: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M5.6 5.6l12.8 12.8" />
+    </>
+  ),
+  pause: <path d="M9 5v14M15 5v14" />,
+  play: <path d="M8 5l11 7-11 7V5Z" />,
+  phone: (
+    <path d="M4 5c0 8.3 6.7 15 15 15l1.6-3.7-4.5-2-2 2c-2.5-1.3-4.6-3.4-5.9-5.9l2-2-2-4.5L4 5Z" />
+  ),
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3.5 6.5 12 13l8.5-6.5" />
+    </>
+  ),
+  mapPin: (
+    <>
+      <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </>
+  ),
+  gift: (
+    <>
+      <rect x="3.5" y="8" width="17" height="4" rx="1" />
+      <path d="M5 12v9h14v-9M12 8v13" />
+      <path d="M12 8C9.5 8 8 6.8 8.6 5.4 9.1 4.2 11 4.8 12 8c1-3.2 2.9-3.8 3.4-2.6C16 6.8 14.5 8 12 8Z" />
+    </>
+  ),
+  sparkles: (
+    <>
+      <path d="M12 3l1.6 4.8L18 9.4l-4.4 1.6L12 16l-1.6-5L6 9.4l4.4-1.6L12 3Z" />
+      <path d="M18.5 14l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z" />
+    </>
+  ),
+  logout: (
+    <>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5M21 12H9" />
     </>
   ),
 };

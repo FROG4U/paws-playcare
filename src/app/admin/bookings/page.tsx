@@ -1,4 +1,4 @@
 import { ComingSoon } from "@/components/ComingSoon";
 export default function Page() {
-  return <ComingSoon title="Bookings" note="Assign walkers and manage bookings here (next phase)." />;
+  return <ComingSoon title="Bookings" icon="clipboard" note="Manage every active booking and assign walkers here." />;
 }

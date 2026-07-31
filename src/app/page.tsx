@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { Icon } from "@/components/Icon";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -24,7 +25,8 @@ export default async function Home() {
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-10 px-5 py-16 text-center">
         <div className="space-y-5">
           <span className="badge bg-brand-soft text-brand-dark">
-            🐾 Trusted local dog walking
+            <Icon name="paw" className="h-3.5 w-3.5" />
+            Trusted local dog walking
           </span>
           <h1 className="mx-auto max-w-2xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
             Happy dogs, effortless bookings.
@@ -47,24 +49,26 @@ export default async function Home() {
         <div className="grid w-full gap-4 sm:grid-cols-3">
           {[
             {
-              icon: "📅",
+              icon: "calendar",
               title: "Book in seconds",
               body: "Pick one-off or repeating walks from an easy calendar.",
             },
             {
-              icon: "🚶",
+              icon: "footprints",
               title: "Trusted walkers",
               body: "Every walk is assigned to a vetted Paws Playcare walker.",
             },
             {
-              icon: "💳",
+              icon: "card",
               title: "Automatic payments",
               body: "Detailed invoices, charged to your card on your schedule.",
             },
           ].map((f) => (
             <div key={f.title} className="card text-left">
-              <div className="text-2xl">{f.icon}</div>
-              <h3 className="mt-2 font-bold">{f.title}</h3>
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-soft text-brand">
+                <Icon name={f.icon} className="h-[1.35rem] w-[1.35rem]" />
+              </span>
+              <h3 className="mt-3 font-bold">{f.title}</h3>
               <p className="mt-1 text-sm text-muted">{f.body}</p>
             </div>
           ))}

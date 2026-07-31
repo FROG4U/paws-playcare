@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/money";
+import { Icon } from "@/components/Icon";
 import { createBooking, type BookInput } from "./actions";
 
 export type BookServiceOption = {
@@ -281,9 +282,12 @@ export function BookingForm({
 
       {/* Services (multi-select) */}
       <section className="card space-y-3">
-        <div>
-          <h2 className="text-lg font-bold">Services</h2>
-          <p className="text-sm text-muted">Pick one or more — you can book Field Play and Walks together.</p>
+        <div className="flex items-start gap-2">
+          <Icon name="paw" className="mt-0.5 h-5 w-5 text-brand" />
+          <div>
+            <h2 className="text-lg font-bold">Services</h2>
+            <p className="text-sm text-muted">Pick one or more — you can book Field Play and Walks together.</p>
+          </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {services.map((s) => {
@@ -310,7 +314,10 @@ export function BookingForm({
 
       {/* Dogs */}
       <section className="card space-y-3">
-        <h2 className="text-lg font-bold">Which dog{dogs.length > 1 ? "s" : ""}?</h2>
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <Icon name="paw" className="h-5 w-5 text-brand" />
+          Which dog{dogs.length > 1 ? "s" : ""}?
+        </h2>
         <div className="flex flex-wrap gap-2">
           {dogs.map((d) => (
             <label key={d.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand/10">
@@ -323,7 +330,8 @@ export function BookingForm({
 
       {/* When */}
       <section className="card space-y-4">
-        <h2 className="text-lg font-bold">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <Icon name="calendar" className="h-5 w-5 text-brand" />
           When would you like {selectedServices.length === 1 ? selectedServices[0].name : "your walks"}?
         </h2>
         <div className="grid grid-cols-2 gap-2">

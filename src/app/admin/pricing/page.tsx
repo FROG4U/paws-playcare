@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/pricing";
 import { penceToPounds, formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
+import { PageHeader } from "@/components/ui";
 import {
   savePricing,
   addHolidayRate,
@@ -24,7 +25,7 @@ export default async function PricingPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-extrabold">Pricing</h1>
+      <PageHeader icon="tag" title="Pricing" subtitle="Walk rates, holiday rates and rules." />
 
       {/* Standard pricing */}
       <form action={savePricing} className="card space-y-4">

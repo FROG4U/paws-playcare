@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ROLES } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
+import { PageHeader } from "@/components/ui";
 import { createWorkerInvite } from "./actions";
 import { CopyLink, RevokeButton, WorkerActiveToggle } from "./InviteControls";
 
@@ -17,13 +18,11 @@ export default async function TeamPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold">Team</h1>
-        <p className="text-muted">
-          Admins are walkers by default. Invite new walkers with a registration
-          link.
-        </p>
-      </div>
+      <PageHeader
+        icon="footprints"
+        title="Team"
+        subtitle="Admins are walkers by default. Invite new walkers with a link."
+      />
 
       {/* Invite a worker */}
       <div className="card space-y-4">

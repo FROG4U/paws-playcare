@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { WALK_STATUS } from "@/lib/constants";
 import { formatDate, dayKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
+import { PageHeader, EmptyState } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { BookingActions, type WalkLite } from "./BookingActions";
 
 export default async function NewBookingsPage() {
@@ -16,16 +18,16 @@ export default async function NewBookingsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold">New Bookings</h1>
-        <p className="text-muted">
-          Incoming requests from clients. Accept, edit the dates, or reject —
-          the client is notified of whatever you decide.
-        </p>
-      </div>
+      <PageHeader
+        icon="inbox"
+        title="New Bookings"
+        subtitle="Accept, edit dates, or reject — the client is notified either way."
+      />
 
       {bookings.length === 0 && (
-        <div className="card text-center text-muted">📥 No new booking requests right now.</div>
+        <EmptyState icon="inbox" title="Inbox zero">
+          No new booking requests right now. New ones will land here.
+        </EmptyState>
       )}
 
       {bookings.map((b) => {

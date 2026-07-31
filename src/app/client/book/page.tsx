@@ -4,6 +4,7 @@ import { requireClient } from "@/lib/guard";
 import { getServices, serviceDays } from "@/lib/services";
 import { bankHolidayKeys } from "@/lib/availability";
 import { dayKey } from "@/lib/dates";
+import { PageHeader, EmptyState } from "@/components/ui";
 import { BookingForm, type BookServiceOption, type BookDogOption } from "./BookingForm";
 
 export default async function BookPage() {
@@ -37,22 +38,24 @@ export default async function BookPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold">Book a walk</h1>
-        <p className="text-sm text-muted">
-          Choose a service, pick your dog(s), and book a single day or a repeating schedule.
-        </p>
-      </div>
+      <PageHeader
+        icon="calendar"
+        title="Book a walk"
+        subtitle="Pick a service, choose your dog(s), and book a day or a repeating schedule."
+      />
 
       {dogOptions.length === 0 ? (
-        <div className="card space-y-2">
-          <p className="text-muted">You don&apos;t have any dogs on your account yet.</p>
-          <Link href="/client" className="btn-outline w-fit">Go to your account</Link>
-        </div>
+        <EmptyState
+          icon="paw"
+          title="No dogs on your account"
+          action={<Link href="/client" className="btn-outline">Go to your account</Link>}
+        >
+          Add a dog to your account first, then you can book walks.
+        </EmptyState>
       ) : serviceOptions.length === 0 ? (
-        <div className="card">
-          <p className="text-muted">There are no services available to book right now. Please check back soon.</p>
-        </div>
+        <EmptyState icon="clock" title="No services available">
+          There&apos;s nothing to book right now — please check back soon.
+        </EmptyState>
       ) : (
         <BookingForm services={serviceOptions} dogs={dogOptions} bankHolidays={[...bhKeys]} todayIso={todayIso} />
       )}

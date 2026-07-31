@@ -5,6 +5,8 @@ import { USER_STATUS, WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, dayKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { PauseToggle } from "@/components/PauseToggle";
+import { EmptyState } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 
 export default async function ClientHome() {
   const user = await requireClient();
@@ -61,15 +63,19 @@ export default async function ClientHome() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Link href="/client/book" className="card flex items-center gap-3 hover:shadow-md">
-          <span className="text-2xl">📅</span>
+        <Link href="/client/book" className="card flex items-center gap-3 transition hover:border-brand/30 hover:shadow-md">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-soft text-brand">
+            <Icon name="calendar" className="h-[1.3rem] w-[1.3rem]" />
+          </span>
           <div>
             <p className="font-bold">Book a walk</p>
             <p className="text-sm text-muted">One-off or repeating</p>
           </div>
         </Link>
-        <Link href="/client/payment" className="card flex items-center gap-3 hover:shadow-md">
-          <span className="text-2xl">💳</span>
+        <Link href="/client/payment" className="card flex items-center gap-3 transition hover:border-brand/30 hover:shadow-md">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-soft text-brand">
+            <Icon name="card" className="h-[1.3rem] w-[1.3rem]" />
+          </span>
           <div>
             <p className="font-bold">Payment</p>
             <p className="text-sm text-muted">
@@ -82,9 +88,16 @@ export default async function ClientHome() {
       </div>
 
       <div className="card">
-        <h2 className="text-lg font-bold">Upcoming walks</h2>
+        <div className="flex items-center gap-2">
+          <Icon name="paw" className="h-5 w-5 text-brand" />
+          <h2 className="text-lg font-bold">Upcoming walks</h2>
+        </div>
         {upcoming.length === 0 ? (
-          <p className="mt-2 text-muted">No upcoming walks booked.</p>
+          <div className="mt-3">
+            <EmptyState icon="calendar" title="No walks booked yet">
+              Book your first walk and it&apos;ll show up here.
+            </EmptyState>
+          </div>
         ) : (
           <ul className="mt-2 divide-y divide-border">
             {upcoming.map((w) => (
@@ -125,10 +138,14 @@ function Banner({
     warn: "bg-warn/10 text-warn",
     danger: "bg-danger/10 text-danger",
   };
+  const icons = { brand: "card", warn: "clock", danger: "ban" } as const;
   return (
-    <div className={`rounded-xl p-4 ${tones[tone]}`}>
-      <p className="font-bold">{title}</p>
-      <p className="text-sm">{children}</p>
+    <div className={`flex items-start gap-3 rounded-xl p-4 ${tones[tone]}`}>
+      <Icon name={icons[tone]} className="mt-0.5 h-5 w-5 shrink-0" />
+      <div>
+        <p className="font-bold">{title}</p>
+        <p className="text-sm">{children}</p>
+      </div>
     </div>
   );
 }

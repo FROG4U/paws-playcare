@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Icon } from "@/components/Icon";
 import { acceptBooking, rejectBooking, updateBookingDates } from "./actions";
 
 export type WalkLite = { id: string; dateIso: string; label: string; editable: boolean };
@@ -73,6 +74,7 @@ export function BookingActions({
         disabled={pending}
         onClick={() => start(() => acceptBooking(bookingId))}
       >
+        <Icon name="check" className="h-4 w-4" />
         Accept
       </button>
       <button
@@ -80,6 +82,7 @@ export function BookingActions({
         disabled={pending || walks.every((w) => !w.editable)}
         onClick={() => setEditing(true)}
       >
+        <Icon name="pencil" className="h-4 w-4" />
         Edit dates
       </button>
       <button
@@ -90,6 +93,7 @@ export function BookingActions({
           start(() => rejectBooking(bookingId, reason));
         }}
       >
+        <Icon name="x" className="h-4 w-4" />
         Reject
       </button>
     </div>

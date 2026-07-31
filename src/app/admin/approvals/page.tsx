@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { ROLES, USER_STATUS } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
 import { BOOKING_SLOT_LABELS } from "@/lib/constants";
+import { PageHeader, EmptyState } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { ApprovalButtons } from "./ApprovalButtons";
 
 export default async function ApprovalsPage() {
@@ -13,17 +15,16 @@ export default async function ApprovalsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold">Account approvals</h1>
-        <p className="text-muted">
-          New clients can&apos;t book until you approve them.
-        </p>
-      </div>
+      <PageHeader
+        icon="check"
+        title="Account approvals"
+        subtitle="New clients can't book until you approve them."
+      />
 
       {pending.length === 0 && (
-        <div className="card text-center text-muted">
-          🎉 No accounts waiting for approval.
-        </div>
+        <EmptyState icon="check" title="All caught up">
+          No accounts are waiting for approval right now.
+        </EmptyState>
       )}
 
       {pending.map((c) => (
@@ -90,8 +91,9 @@ export default async function ApprovalsPage() {
                 key={d.id}
                 className="rounded-lg border border-border bg-background/40 p-3 text-sm"
               >
-                <p className="font-bold">
-                  🐕 {d.name}
+                <p className="flex items-center gap-1.5 font-bold">
+                  <Icon name="paw" className="h-4 w-4 text-brand" />
+                  {d.name}
                   {d.breed ? ` · ${d.breed}` : ""}
                   {d.age ? ` · ${d.age}` : ""}
                 </p>
@@ -125,10 +127,18 @@ export default async function ApprovalsPage() {
 function tag(on: boolean, label: string) {
   if (!on) return null;
   return (
-    <span className="badge bg-brand-soft text-brand-dark">✓ {label}</span>
+    <span className="badge bg-brand-soft text-brand-dark">
+      <Icon name="check" className="h-3.5 w-3.5" />
+      {label}
+    </span>
   );
 }
 function warn(on: boolean, label: string) {
   if (!on) return null;
-  return <span className="badge bg-warn/15 text-warn">⚠ {label}</span>;
+  return (
+    <span className="badge bg-warn/15 text-warn">
+      <Icon name="alert" className="h-3.5 w-3.5" />
+      {label}
+    </span>
+  );
 }

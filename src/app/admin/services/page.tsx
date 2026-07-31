@@ -1,5 +1,7 @@
 import { getServices, serviceDays } from "@/lib/services";
 import { penceToPounds } from "@/lib/money";
+import { PageHeader } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { addService, updateService, toggleService, deleteService } from "./actions";
 
 const WEEKDAYS = [
@@ -15,13 +17,11 @@ export default async function ServicesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold">Services</h1>
-        <p className="text-sm text-muted">
-          The services clients can book, priced per dog. Set which weekdays each
-          one runs and at what time.
-        </p>
-      </div>
+      <PageHeader
+        icon="paw"
+        title="Services"
+        subtitle="What clients can book, priced per dog, and the days each runs."
+      />
 
       {/* How availability works */}
       <div className="card space-y-1.5 border-l-4 border-l-accent">
@@ -52,12 +52,16 @@ export default async function ServicesPage() {
                 </h2>
                 <div className="flex items-center gap-3">
                   <form action={toggleService.bind(null, s.id, !s.active)}>
-                    <button className="text-sm font-semibold text-brand">
+                    <button className="inline-flex items-center gap-1 text-sm font-semibold text-brand">
+                      <Icon name={s.active ? "pause" : "play"} className="h-4 w-4" />
                       {s.active ? "Turn off" : "Turn on"}
                     </button>
                   </form>
                   <form action={deleteService.bind(null, s.id)}>
-                    <button className="text-sm font-semibold text-danger">Delete</button>
+                    <button className="inline-flex items-center gap-1 text-sm font-semibold text-danger">
+                      <Icon name="trash" className="h-4 w-4" />
+                      Delete
+                    </button>
                   </form>
                 </div>
               </div>

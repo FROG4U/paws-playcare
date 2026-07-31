@@ -4,6 +4,8 @@ import { requireClient } from "@/lib/guard";
 import { WALK_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, atUtcMidnight } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
+import { PageHeader, EmptyState } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 
 const STATUS_CLASS: Record<string, string> = {
   REQUESTED: "bg-warn/15 text-warn",
@@ -28,16 +30,30 @@ export default async function WalksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold">My walks</h1>
-        <Link href="/client/book" className="btn-primary">Book</Link>
-      </div>
+      <PageHeader
+        icon="paw"
+        title="My walks"
+        action={
+          <Link href="/client/book" className="btn-primary">
+            <Icon name="plus" className="h-4 w-4" />
+            Book
+          </Link>
+        }
+      />
 
       {walks.length === 0 ? (
-        <div className="card space-y-2 text-center">
-          <p className="text-muted">You haven&apos;t booked any walks yet.</p>
-          <Link href="/client/book" className="btn-primary mx-auto w-fit">Book your first walk</Link>
-        </div>
+        <EmptyState
+          icon="paw"
+          title="No walks yet"
+          action={
+            <Link href="/client/book" className="btn-primary">
+              <Icon name="plus" className="h-4 w-4" />
+              Book your first walk
+            </Link>
+          }
+        >
+          Book a walk and it&apos;ll appear here.
+        </EmptyState>
       ) : (
         <>
           <WalkList title="Upcoming" walks={upcoming} emptyText="No upcoming walks." />
