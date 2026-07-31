@@ -1,0 +1,76 @@
+import { cookies } from "next/headers";
+import { SignJWT, jwtVerify } from "jose";
+import bcrypt from "bcryptjs";
+import { prisma } from "./prisma";
+
+const COOKIE = "ppc_session";
+const secret = new TextEncoder().encode(
+  process.env.AUTH_SECRET || "dev-secret-change-me"
+);
+
+export type SessionPayload = {
+  uid: string;
+  role: string;
+  name: string;
+};
+
+export async function hashPassword(pw: string) {
+  return bcrypt.hash(pw, 10);
+}
+export async function verifyPassword(pw: string, hash: string) {
+  return bcrypt.compare(pw, hash);
+}
+
+export async function createSession(payload: SessionPayload) {
+  const token = await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("30d")
+    .sign(secret);
+
+  const store = await cookies();
+  store.set(COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+}
+
+export async function destroySession() {
+  const store = await cookies();
+  store.delete(COOKIE);
+}
+
+export async function getSession(): Promise<SessionPayload | null> {
+  const store = await cookies();
+  const token = store.get(COOKIE)?.value;
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    return payload as unknown as SessionPayload;
+  } catch {
+    return null;
+  }
+}
+
+// Full user record for the current session (or null).
+export async function getCurrentUser() {
+  const session = await getSession();
+  if (!session) return null;
+  return prisma.user.findUnique({ where: { id: session.uid } });
+}
+
+// Throws-style guard for server actions / route handlers.
+export async function requireUser() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("UNAUTHENTICATED");
+  return user;
+}
+
+export async function requireRole(roles: string[]) {
+  const user = await requireUser();
+  if (!roles.includes(user.role)) throw new Error("FORBIDDEN");
+  return user;
+}

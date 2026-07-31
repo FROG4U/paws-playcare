@@ -1,0 +1,343 @@
+// Paws Playcare — booking & payments platform
+// SQLite does not support Prisma enums, so status/role fields are Strings
+// validated against constants in src/lib/constants.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Users & roles  (roles: ADMIN | WORKER | CLIENT)
+// Any ADMIN or WORKER can be assigned walks (admins are workers by default).
+// ---------------------------------------------------------------------------
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("CLIENT") // ADMIN | WORKER | CLIENT
+  name         String
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Account lifecycle: PENDING (awaiting admin approval) | ACTIVE | SUSPENDED
+  status        String    @default("PENDING")
+  approvedAt    DateTime?
+  approvedById  String?
+  suspendedAt   DateTime?
+  suspendReason String?
+
+  // Client profile
+  address           String?
+  emergencyName     String?
+  emergencyPhone    String?
+  payCadence        String  @default("WEEKLY") // DAILY | WEEKLY | MONTHLY
+  servicesPaused    Boolean @default(false)    // client self-pause switch
+  notes             String?
+
+  // Captured from the sign-up "booking requirements" (initial requested schedule)
+  regStartDate      DateTime?
+  regSlots          String   @default("[]") // JSON array of slot keys e.g. ["MON_AM","TUE_LUNCH"]
+  agreedTermsAt     DateTime?
+
+  // Stripe (card-only). Card details cached for expiry warnings.
+  stripeCustomerId String?
+  paymentMethodId  String?
+  cardBrand        String?
+  cardLast4        String?
+  cardExpMonth     Int?
+  cardExpYear      Int?
+  cardExpiryNotifiedAt DateTime?
+
+  // Worker profile
+  canWork Boolean @default(false) // true for WORKER; admins default true at creation
+
+  // Relations
+  dogs            Dog[]
+  bookings        Booking[]        @relation("ClientBookings")
+  walksAsClient   Walk[]           @relation("ClientWalks")
+  walksAssigned   Walk[]           @relation("WorkerWalks")
+  invoices        Invoice[]
+  earnings        Earning[]
+  notifications   Notification[]
+  changeRequests  ChangeRequest[]  @relation("RequestedBy")
+}
+
+// ---------------------------------------------------------------------------
+// Dogs  (all fields ported from the existing pawsplaycare.co.uk booking form)
+// ---------------------------------------------------------------------------
+model Dog {
+  id      String @id @default(cuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name          String
+  breed         String?
+  age           String?
+  ageUnderOne   String? // "age if less than 1 year"
+  neutered      Boolean @default(false)
+
+  // Health & medical
+  healthDetails     String? // general health + any medication
+  medicalConditions Boolean @default(false)
+  medicalDetails    String?
+  vaccinationsCurrent Boolean @default(false)
+  kennelCoughCurrent  Boolean @default(false)
+  allergies         String?
+  microchipped      Boolean @default(false)
+  insured           Boolean @default(false)
+
+  // Behaviour & temperament
+  aggressionPeople  Boolean @default(false)
+  aggressionAnimals Boolean @default(false)
+  fenceJumping      Boolean @default(false)
+  possessiveness    Boolean @default(false)
+  socialises        Boolean @default(true)
+  acceptsTreats     Boolean @default(true)
+  obedienceNotes    String?
+  historyBiting     Boolean @default(false)
+  historyGrowling   Boolean @default(false)
+  escapeAttempts    Boolean @default(false)
+  reactedNegatively Boolean @default(false)
+  negativeReactions String? // "if yes to any of the above, please provide details"
+  houseTrained      Boolean @default(true)
+  triggers          String?
+  otherNotes        String?
+
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Pricing — single settings row + admin custom holiday-rate ranges
+// All money is stored as integer pence.
+// ---------------------------------------------------------------------------
+model Setting {
+  id                   Int    @id @default(1)
+  currency             String @default("gbp")
+  baseWalkPrice        Int    @default(1500) // £15.00
+  extraDogFee          Int    @default(500)  // +£5.00 per additional dog
+  bankHolidayWalkPrice Int    @default(2250) // £22.50 on bank holidays
+  bankHolidayExtraDogFee Int  @default(750)
+  workerFlatRate       Int    @default(1000) // worker earns £10.00 per walk
+  unpaidGraceDays      Int    @default(7)
+  cardExpiryWarnDays   Int    @default(30)
+  bankHolidayDivision  String @default("england-and-wales")
+  updatedAt            DateTime @updatedAt
+}
+
+model HolidayRate {
+  id          String   @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  walkPrice   Int
+  extraDogFee Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model BankHoliday {
+  id       String   @id @default(cuid())
+  date     DateTime @unique
+  title    String
+  division String   @default("england-and-wales")
+}
+
+// A bookable service the admin manages from the backend (e.g. "Field Play",
+// "Walks"). Priced per dog. `daysOfWeek` is a JSON array of ISO weekdays it
+// runs on (Mon=1 … Fri=5). Weekends and bank holidays are never bookable —
+// see lib/availability.ts.
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  pricePerDog Int      @default(1600) // £16.00 per dog
+  daysOfWeek  String   @default("[]") // JSON [1..5]
+  timeSlot    String   @default("AM") // AM | LUNCH | PM
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Bookings & walks
+// A Booking is the client's request (one-off or a recurring series).
+// A Walk is a single dated instance generated from a Booking — the unit that
+// gets assigned, accepted, completed, invoiced and paid to a worker.
+// ---------------------------------------------------------------------------
+model Booking {
+  id       String @id @default(cuid())
+  clientId String
+  client   User   @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Which service was booked (denormalised name kept for display/history even
+  // if the service is later renamed or removed).
+  serviceId   String?
+  serviceName String?
+
+  type    String  @default("ONE_OFF") // ONE_OFF | RECURRING
+  status  String  @default("ACTIVE")  // ACTIVE | ENDED | CANCELLED
+  notes   String?
+
+  // Admin triage of the incoming request (New Bookings inbox).
+  // reviewedAt null = still a new/pending request awaiting the admin.
+  reviewedAt   DateTime?
+  reviewedById String?
+  decision     String?  // ACCEPTED | REJECTED
+
+  // Selected dogs (JSON array of Dog ids) + count cached for pricing
+  dogIds  String @default("[]")
+  numDogs Int    @default(1)
+
+  // Scheduling
+  timeSlot   String   @default("AM") // AM | LUNCH | PM  (or a HH:mm string)
+  startDate  DateTime
+  endDate    DateTime? // null = open-ended recurring
+  daysOfWeek String   @default("[]") // JSON [1..7] for RECURRING (Mon=1)
+
+  createdAt DateTime @default(now())
+  walks     Walk[]
+}
+
+model Walk {
+  id        String  @id @default(cuid())
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  clientId String
+  client   User   @relation("ClientWalks", fields: [clientId], references: [id], onDelete: Cascade)
+
+  date        DateTime
+  timeSlot    String  @default("AM")
+  serviceName String?
+  numDogs     Int     @default(1)
+
+  // REQUESTED -> ASSIGNED -> ACCEPTED -> COMPLETED ; or CANCELLED / DECLINED
+  status           String    @default("REQUESTED")
+  assignedWorkerId String?
+  worker           User?     @relation("WorkerWalks", fields: [assignedWorkerId], references: [id], onDelete: SetNull)
+  workerAcceptedAt DateTime?
+  completedAt      DateTime?
+  completedById    String?
+  cancelledAt      DateTime?
+  cancelReason     String?
+
+  // Pricing snapshot (pence) resolved at creation
+  price         Int     @default(0)
+  isBankHoliday Boolean @default(false)
+  holidayRateId String?
+
+  invoiceItem InvoiceItem?
+  earning     Earning?
+  changeRequests ChangeRequest[]
+
+  createdAt DateTime @default(now())
+}
+
+// Client date-change requests & worker shift-swaps — both need admin approval.
+model ChangeRequest {
+  id            String   @id @default(cuid())
+  walkId        String
+  walk          Walk     @relation(fields: [walkId], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy   User     @relation("RequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  type            String  // DATE_CHANGE | SHIFT_SWAP
+  proposedDate    DateTime?
+  proposedSlot    String?
+  proposedWorkerId String?
+  note            String?
+  status          String  @default("PENDING") // PENDING | APPROVED | REJECTED
+  resolvedById    String?
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Invoices, items & worker earnings
+// ---------------------------------------------------------------------------
+model Invoice {
+  id       String @id @default(cuid())
+  number   String @unique
+  clientId String
+  client   User   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  status      String   @default("OPEN") // OPEN | PAID | FAILED | VOID
+  cadence     String   @default("WEEKLY")
+  periodStart DateTime
+  periodEnd   DateTime
+  currency    String   @default("gbp")
+  subtotal    Int      @default(0)
+  total       Int      @default(0)
+
+  dueAt         DateTime?
+  paidAt        DateTime?
+  attemptCount  Int      @default(0)
+  failureReason String?
+  stripePaymentIntentId String?
+
+  items     InvoiceItem[]
+  createdAt DateTime @default(now())
+}
+
+model InvoiceItem {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  walkId    String  @unique
+  walk      Walk    @relation(fields: [walkId], references: [id], onDelete: Cascade)
+
+  description String
+  date        DateTime
+  amount      Int
+}
+
+model Earning {
+  id       String @id @default(cuid())
+  workerId String
+  worker   User   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  walkId   String @unique
+  walk     Walk   @relation(fields: [walkId], references: [id], onDelete: Cascade)
+
+  amount    Int
+  clientName String
+  date      DateTime
+  numDogs   Int    @default(1)
+  status    String @default("EARNED") // EARNED | PAID
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Worker invites — admin generates a shareable registration link for a worker.
+// ---------------------------------------------------------------------------
+model WorkerInvite {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  email       String?
+  name        String?
+  createdById String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedByUserId String?
+}
+
+// ---------------------------------------------------------------------------
+// In-app notifications (admin approvals, walk events, payment failures, etc.)
+// ---------------------------------------------------------------------------
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type  String
+  title String
+  body  String?
+  link  String?
+  read  Boolean @default(false)
+  createdAt DateTime @default(now())
+}

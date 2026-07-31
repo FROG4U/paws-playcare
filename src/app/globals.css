@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
+/* Paws Playcare brand system — raw vars in :root so var(--brand) works in
+   arbitrary values, mapped into Tailwind theme tokens via @theme inline. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f8f7;
+  --surface: #ffffff;
+  --foreground: #17251f;
+  --muted: #5d6f68;
+  --brand: #1f8a70;
+  --brand-dark: #156a56;
+  --brand-soft: #e3f2ec;
+  --accent: #f39a3e;
+  --border: #e2e8e4;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warn: #d97706;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --radius-xl: 1rem;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer components {
+  /* Buttons — base shared by all variants (grouped selector, no @apply of
+     component classes which Tailwind v4 does not support). */
+  .btn,
+  .btn-primary,
+  .btn-accent,
+  .btn-outline,
+  .btn-danger,
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-brand text-white;
+  }
+  .btn-primary:hover {
+    @apply bg-brand-dark;
+  }
+  .btn-accent {
+    @apply bg-accent text-white hover:brightness-95;
+  }
+  .btn-outline {
+    @apply border border-border bg-surface text-foreground hover:bg-brand-soft;
+  }
+  .btn-danger {
+    @apply bg-danger text-white hover:brightness-95;
+  }
+  .btn-ghost {
+    @apply text-muted hover:bg-brand-soft hover:text-brand-dark;
+  }
+
+  .card {
+    @apply rounded-xl border border-border bg-surface p-5 shadow-sm;
+  }
+  .input {
+    @apply w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-foreground outline-none focus:border-brand focus:ring-2 focus:ring-brand/20;
+  }
+  .label {
+    @apply block text-sm font-medium text-foreground mb-1.5;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
 }
