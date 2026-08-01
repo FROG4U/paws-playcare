@@ -46,6 +46,14 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Welcome / body content — above the icons */}
+      <div className="mx-auto w-full max-w-3xl px-5 py-16 text-center">
+        <article
+          className="prose-site prose-site-center"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(page.body) }}
+        />
+      </div>
+
       {/* Feature grid — the homepage promises with classy line icons */}
       <section className="bg-mist">
         <div className="mx-auto grid w-full max-w-5xl gap-x-6 gap-y-10 px-5 py-16 sm:grid-cols-3">
@@ -61,10 +69,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Welcome / body content */}
-      <div className="mx-auto w-full max-w-3xl px-5 py-16">
-        <article className="prose-site" dangerouslySetInnerHTML={{ __html: renderMarkdown(page.body) }} />
-        <div className="mt-8 flex flex-wrap gap-3">
+      {/* CTA */}
+      <div className="mx-auto w-full max-w-3xl px-5 py-16 text-center">
+        <div className="flex flex-wrap justify-center gap-3">
           <Link href="/online-booking-form" className="btn-primary px-6 py-3 text-base">
             Book a walk
           </Link>

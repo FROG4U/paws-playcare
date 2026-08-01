@@ -17,18 +17,7 @@ const DEFAULT_PAGES = [
     metaDescription: "Friendly, fully-insured dog walking and play in Watford. Social group walks, adventure walks and a private enclosed paddock. Pickup and drop-off included.",
     body: `## Welcome to Paws Playcare Watford
 
-Walk and play makes a dog's day! What we say is what we do — lots of walking and playing too. Transportation is included with pickup and drop-off.
-
-### Why owners choose us
-
-- **Social playtime** — dogs interact and play together
-- **Expert care** — a team of qualified dog trainers
-- **Convenient** — pickup and drop-off included
-- **Safe** — a private, enclosed paddock for activities
-- **Fully insured** — professional standards throughout
-- **DBS-checked** — trustworthy, vetted staff
-
-Ready to get started? Create an account and book your dog's first walk.`,
+Walk and play makes a dog's day! What we say is what we do — lots of walking and playing too. Transportation is included with pickup and drop-off.`,
   },
   {
     slug: "about-us",
