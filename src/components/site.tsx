@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Logo } from "./Logo";
 import { Icon } from "./Icon";
-import { SiteNav, type SiteNavItem } from "./SiteNav";
+import { SiteNavBar, type SiteNavItem } from "./SiteNav";
 import { getNavPages } from "@/lib/pages";
 import { getSettings } from "@/lib/pricing";
 import { getSession } from "@/lib/auth";
@@ -26,34 +26,7 @@ export async function SiteHeader() {
     { href: "/online-booking-form", label: "Booking Form" },
   ];
 
-  return (
-    <header className="sticky top-0 z-30">
-      {/* Logo strip */}
-      <div className="bg-surface">
-        <div className="relative mx-auto flex max-w-6xl items-center justify-center px-5 py-4">
-          <Link href="/" aria-label="Paws Playcare home">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo.webp" alt="Paws Playcare" className="h-16 w-auto sm:h-20" />
-          </Link>
-          <div className="absolute right-5">
-            {accountHref ? (
-              <Link href={accountHref} className="text-sm font-semibold text-brand hover:underline">
-                My account
-              </Link>
-            ) : (
-              <Link href="/PPC" className="hidden text-sm font-semibold text-muted hover:text-brand sm:inline">
-                Staff login
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
-      {/* Charcoal nav bar */}
-      <nav className="bg-charcoal">
-        <SiteNav items={items} />
-      </nav>
-    </header>
-  );
+  return <SiteNavBar items={items} accountHref={accountHref} />;
 }
 
 export async function SiteFooter() {
