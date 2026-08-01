@@ -87,7 +87,7 @@ export function PageHero({
   image?: string | null;
 }) {
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative flex min-h-[380px] items-center overflow-hidden sm:min-h-[460px]">
       {image ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -97,7 +97,7 @@ export function PageHero({
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-brand to-brand-dark" />
       )}
-      <div className="relative mx-auto w-full max-w-4xl px-5 py-24 text-center sm:py-32">
+      <div className="relative mx-auto w-full max-w-4xl px-5 py-12 text-center">
         <h1 className="mx-auto max-w-[16ch] text-balance text-4xl font-extrabold tracking-tight text-white drop-shadow sm:text-6xl">
           {heading}
         </h1>
