@@ -15,12 +15,12 @@ export async function generateMetadata(): Promise<Metadata> {
 // The six promises from the current pawsplaycare.co.uk homepage, now with
 // classy keyline icons.
 const FEATURES = [
-  { icon: "users", title: "Social playtime", sub: "Dogs play and socialise together" },
-  { icon: "check", title: "Qualified dog trainers", sub: "Cared for by trained experts" },
-  { icon: "car", title: "Pick up & drop off", sub: "Included with every booking" },
-  { icon: "mapPin", title: "Private enclosed paddock", sub: "A safe, secure space to run" },
-  { icon: "shield", title: "Fully insured", sub: "Professional standards throughout" },
-  { icon: "shieldCheck", title: "DBS checked", sub: "Trustworthy, vetted team" },
+  { img: "/brand/social-playtime.webp", title: "Social playtime", sub: "Dogs play and socialise together" },
+  { img: "/brand/qualified-dog-trainers.webp", title: "Qualified dog trainers", sub: "Cared for by trained experts" },
+  { img: "/brand/pick-up-drop-off.webp", title: "Pick up & drop off", sub: "Included with every booking" },
+  { img: "/brand/private-enclosed-paddock.webp", title: "Private enclosed paddock", sub: "A safe, secure space to run" },
+  { img: "/brand/fully-insured.webp", title: "Fully insured", sub: "Professional standards throughout" },
+  { img: "/brand/dbs-checked.webp", title: "DBS checked", sub: "Trustworthy, vetted team" },
 ];
 
 export default async function HomePage() {
@@ -58,11 +58,10 @@ export default async function HomePage() {
       <section className="bg-mist">
         <div className="mx-auto grid w-full max-w-5xl gap-x-6 gap-y-10 px-5 py-16 sm:grid-cols-3">
           {FEATURES.map((f) => (
-            <div key={f.title} className="group flex cursor-default flex-col items-center text-center">
-              <span className="ppc-feature grid h-16 w-16 place-items-center rounded-full bg-surface text-brand shadow-sm ring-1 ring-brand/15 group-hover:text-brand-dark group-hover:ring-brand/40">
-                <Icon name={f.icon} className="h-8 w-8" />
-              </span>
-              <h3 className="mt-4 text-lg font-extrabold text-foreground">{f.title}</h3>
+            <div key={f.title} className="group flex flex-col items-center text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={f.img} alt="" className="ppc-feature h-32 w-32 sm:h-36 sm:w-36" />
+              <h3 className="mt-4 text-xl font-extrabold text-foreground">{f.title}</h3>
               <p className="mt-1 max-w-[16rem] text-sm text-muted">{f.sub}</p>
             </div>
           ))}

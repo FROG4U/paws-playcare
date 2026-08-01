@@ -32,7 +32,8 @@ export async function SiteHeader() {
       <div className="bg-surface">
         <div className="relative mx-auto flex max-w-6xl items-center justify-center px-5 py-4">
           <Link href="/" aria-label="Paws Playcare home">
-            <Logo className="text-2xl" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo.webp" alt="Paws Playcare" className="h-16 w-auto sm:h-20" />
           </Link>
           <div className="absolute right-5">
             {accountHref ? (
