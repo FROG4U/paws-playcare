@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { Icon } from "@/components/Icon";
 import { getSession } from "@/lib/auth";
+import { ROLES } from "@/lib/constants";
 import { LoginForm } from "@/app/login/LoginForm";
 
 export const metadata: Metadata = {
@@ -12,7 +13,11 @@ export const metadata: Metadata = {
 };
 
 export default async function OnlineBookingForm() {
-  if (await getSession()) redirect("/dashboard");
+  const session = await getSession();
+  if (session) {
+    // Clients came here to book — take them straight to the calendar.
+    redirect(session.role === ROLES.CLIENT ? "/client/book" : "/dashboard");
+  }
   return (
     <div className="flex flex-1 flex-col">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-5">
