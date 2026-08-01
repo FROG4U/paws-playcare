@@ -23,7 +23,6 @@ export async function SiteHeader() {
       href: p.slug === "home" ? "/" : `/${p.slug}`,
       label: p.navLabel,
     })),
-    { href: "/terms", label: "T&Cs" },
     { href: "/online-booking-form", label: "Booking Form" },
   ];
 
@@ -75,6 +74,11 @@ export async function SiteFooter() {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link href="/terms" className="text-sm text-white/80 hover:text-white">
+                Terms &amp; Conditions
+              </Link>
+            </li>
           </ul>
         </div>
         <div>

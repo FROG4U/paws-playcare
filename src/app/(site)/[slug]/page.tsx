@@ -4,6 +4,7 @@ import { getPage, renderMarkdown } from "@/lib/pages";
 import { PageHero } from "@/components/site";
 import { PricesTable } from "./PricesTable";
 import { ContactForm } from "./ContactForm";
+import { ServicesGrid } from "./ServicesGrid";
 
 export async function generateMetadata({
   params,
@@ -36,6 +37,11 @@ export default async function DynamicPage({
           className="prose-site"
           dangerouslySetInnerHTML={{ __html: renderMarkdown(page.body) }}
         />
+        {slug === "our-services" && (
+          <div className="mt-8">
+            <ServicesGrid />
+          </div>
+        )}
         {slug === "prices" && (
           <div className="mt-8">
             <PricesTable />

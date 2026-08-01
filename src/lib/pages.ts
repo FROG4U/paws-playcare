@@ -47,26 +47,7 @@ Away from animals I keep active through running, swimming and hockey. I trained 
     metaDescription: "Puppy pop-ins, social group walks, adventure walks, play & walk sessions, pet taxi, dog training and pet food delivery in Watford.",
     body: `## How we can help
 
-### Puppy pop-ins
-Brief visits for young puppies who need frequent attention and socialisation.
-
-### Social group walks
-One-hour social group walks that bring dogs together for exercise and interaction.
-
-### Adventure walks
-Longer 1.5-hour outings for dogs who need more vigorous activity and exploration.
-
-### Play & walk sessions
-A comprehensive 3-hour experience combining playtime with walking.
-
-### Pet taxi service
-Pick up and drop off included for convenient pet transport.
-
-### Dog training
-Professional training to support behavioural development and obedience.
-
-### Pet food delivery
-A convenient shopping service with pickup and home delivery of pet food.`,
+From quick puppy pop-ins to full adventure walks, here's everything we offer to keep your dog happy, active and well cared for.`,
   },
   {
     slug: "playground",
