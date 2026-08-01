@@ -123,10 +123,6 @@ export function PageHero({
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-brand to-brand-dark" />
       )}
-      {/* Playful floating paws */}
-      <Icon name="paw" className="ppc-float pointer-events-none absolute left-[6%] top-[22%] h-10 w-10 text-white/20" />
-      <Icon name="paw" className="ppc-float-slow pointer-events-none absolute right-[9%] top-[30%] h-14 w-14 text-white/15" />
-      <Icon name="paw" className="ppc-float pointer-events-none absolute right-[22%] bottom-[14%] h-8 w-8 text-white/20" />
       <div className="relative mx-auto w-full max-w-4xl px-5 py-20 text-center sm:py-28">
         <h1 className="text-4xl font-extrabold tracking-tight text-white drop-shadow sm:text-6xl">
           {heading}
