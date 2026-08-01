@@ -98,10 +98,10 @@ export function PageHero({
         <div className="absolute inset-0 bg-gradient-to-br from-brand to-brand-dark" />
       )}
       <div className="relative mx-auto w-full max-w-4xl px-5 py-20 text-center sm:py-28">
-        <h1 className="text-4xl font-extrabold tracking-tight text-white drop-shadow sm:text-6xl">
+        <h1 className="mx-auto max-w-[16ch] text-balance text-4xl font-extrabold tracking-tight text-white drop-shadow sm:text-6xl">
           {heading}
         </h1>
-        {sub && <p className="mx-auto mt-4 max-w-2xl text-lg text-white/90">{sub}</p>}
+        {sub && <p className="mx-auto mt-4 max-w-2xl text-balance text-lg text-white/90">{sub}</p>}
       </div>
     </section>
   );
