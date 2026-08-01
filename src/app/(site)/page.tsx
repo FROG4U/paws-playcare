@@ -57,11 +57,16 @@ export default async function HomePage() {
       {/* Feature grid — the homepage promises with classy line icons */}
       <section className="bg-mist">
         <div className="mx-auto grid w-full max-w-5xl gap-x-6 gap-y-10 px-5 py-16 sm:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="group flex flex-col items-center text-center">
+          {FEATURES.map((f, i) => (
+            <div key={f.title} className="flex flex-col items-center text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={f.img} alt="" className="ppc-feature h-32 w-32 sm:h-36 sm:w-36" />
-              <h3 className="mt-4 text-xl font-extrabold text-foreground">{f.title}</h3>
+              <img
+                src={f.img}
+                alt=""
+                className="ppc-bob h-24 w-24"
+                style={{ animationDelay: `${i * 0.35}s` }}
+              />
+              <h3 className="mt-4 text-lg font-extrabold text-foreground">{f.title}</h3>
               <p className="mt-1 max-w-[16rem] text-sm text-muted">{f.sub}</p>
             </div>
           ))}

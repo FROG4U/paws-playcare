@@ -130,6 +130,11 @@ body {
   from { transform: scale(0.8); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+@keyframes ppc-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.ppc-bob { animation: ppc-bob 3.2s ease-in-out infinite; }
 .ppc-float { animation: ppc-float 5s ease-in-out infinite; }
 .ppc-float-slow { animation: ppc-float 7.5s ease-in-out infinite; }
 .ppc-pop { animation: ppc-pop 0.5s ease-out both; }
@@ -141,6 +146,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ppc-bob,
   .ppc-float,
   .ppc-float-slow,
   .ppc-pop,
