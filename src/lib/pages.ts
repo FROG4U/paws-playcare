@@ -8,6 +8,7 @@ marked.setOptions({ gfm: true, breaks: true });
 const DEFAULT_PAGES = [
   {
     slug: "home",
+    heroImage: "/brand/hero-home.webp",
     navLabel: "Home",
     title: "Paws Playcare Watford",
     heroHeading: "Walk and play makes a dog's day!",
@@ -21,6 +22,7 @@ Walk and play makes a dog's day! What we say is what we do — lots of walking a
   },
   {
     slug: "about-us",
+    heroImage: "/brand/hero-grace.webp",
     navLabel: "About us",
     title: "About us",
     heroHeading: "A little about me",
@@ -38,6 +40,7 @@ Away from animals I keep active through running, swimming and hockey. I trained 
   },
   {
     slug: "our-services",
+    heroImage: "/brand/hero-home.webp",
     navLabel: "Services",
     title: "Our services",
     heroHeading: "How we can help",
@@ -51,6 +54,7 @@ From quick puppy pop-ins to full adventure walks, here's everything we offer to 
   },
   {
     slug: "playground",
+    heroImage: "/brand/hero-grace.webp",
     navLabel: "Playground",
     title: "Our playground",
     heroHeading: "Paws Playcare's doggy playground",
@@ -68,6 +72,7 @@ Bookings can often be arranged on the day depending on availability — just use
   },
   {
     slug: "prices",
+    heroImage: "/brand/hero-home.webp",
     navLabel: "Prices",
     title: "Prices",
     heroHeading: "Simple, fair pricing",
@@ -83,6 +88,7 @@ Create an account to book — payment is collected automatically after each comp
   },
   {
     slug: "contact",
+    heroImage: "/brand/hero-grace.webp",
     navLabel: "Contact",
     title: "Contact us",
     heroHeading: "Get in touch",
