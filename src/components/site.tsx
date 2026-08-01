@@ -97,7 +97,7 @@ export function PageHero({
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-brand to-brand-dark" />
       )}
-      <div className="relative mx-auto w-full max-w-4xl px-5 py-20 text-center sm:py-28">
+      <div className="relative mx-auto w-full max-w-4xl px-5 py-24 text-center sm:py-32">
         <h1 className="mx-auto max-w-[16ch] text-balance text-4xl font-extrabold tracking-tight text-white drop-shadow sm:text-6xl">
           {heading}
         </h1>
