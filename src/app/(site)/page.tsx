@@ -60,7 +60,7 @@ export default async function HomePage() {
           {FEATURES.map((f) => (
             <div key={f.title} className="group flex flex-col items-center text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={f.img} alt="" className="ppc-feature h-24 w-24" />
+              <img src={f.img} alt="" className="ppc-feature h-[6.5rem] w-[6.5rem]" />
               <h3 className="mt-4 text-lg font-extrabold text-foreground">{f.title}</h3>
               <p className="mt-1 max-w-[16rem] text-sm text-muted">{f.sub}</p>
             </div>
