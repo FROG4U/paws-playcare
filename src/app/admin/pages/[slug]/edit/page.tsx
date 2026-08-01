@@ -7,10 +7,13 @@ import { savePage, generateSeo, deletePage } from "../../actions";
 
 export default async function EditPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ seo?: string }>;
 }) {
   const { slug } = await params;
+  const { seo } = await searchParams;
   const page = await getPage(slug);
   if (!page) notFound();
 
@@ -22,6 +25,12 @@ export default async function EditPage({
           <Icon name="arrowRight" className="h-4 w-4" /> View live
         </Link>
       </div>
+
+      {seo && (
+        <p className="flex items-center gap-2 rounded-lg bg-success/15 px-3 py-2 text-sm text-success">
+          <Icon name="sparkles" className="h-4 w-4" /> SEO generated and saved. Review the meta fields below, then Save changes.
+        </p>
+      )}
 
       <form action={savePage} className="space-y-6">
         <input type="hidden" name="slug" value={slug} />

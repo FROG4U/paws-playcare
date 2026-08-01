@@ -58,8 +58,8 @@ export default async function HomePage() {
       <section className="bg-mist">
         <div className="mx-auto grid w-full max-w-5xl gap-x-6 gap-y-10 px-5 py-16 sm:grid-cols-3">
           {FEATURES.map((f) => (
-            <div key={f.title} className="flex flex-col items-center text-center">
-              <span className="grid h-16 w-16 place-items-center rounded-full bg-surface text-brand shadow-sm ring-1 ring-brand/15">
+            <div key={f.title} className="group flex cursor-default flex-col items-center text-center">
+              <span className="ppc-feature grid h-16 w-16 place-items-center rounded-full bg-surface text-brand shadow-sm ring-1 ring-brand/15 group-hover:text-brand-dark group-hover:ring-brand/40">
                 <Icon name={f.icon} className="h-8 w-8" />
               </span>
               <h3 className="mt-4 text-lg font-extrabold text-foreground">{f.title}</h3>

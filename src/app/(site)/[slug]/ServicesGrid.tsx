@@ -16,8 +16,8 @@ export function ServicesGrid() {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {SERVICES.map((s) => (
-        <div key={s.title} className="card flex items-start gap-4">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand">
+        <div key={s.title} className="group card flex items-start gap-4 transition hover:-translate-y-0.5 hover:shadow-md">
+          <span className="ppc-feature grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand">
             <Icon name={s.icon} className="h-6 w-6" />
           </span>
           <div>

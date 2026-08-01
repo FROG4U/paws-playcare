@@ -116,3 +116,36 @@ body {
   @apply font-bold text-foreground;
 }
 
+/* Playful touches */
+@keyframes ppc-float {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-14px) rotate(var(--r, 0deg)); }
+}
+@keyframes ppc-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-9deg); }
+  75% { transform: rotate(9deg); }
+}
+@keyframes ppc-pop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.ppc-float { animation: ppc-float 5s ease-in-out infinite; }
+.ppc-float-slow { animation: ppc-float 7.5s ease-in-out infinite; }
+.ppc-pop { animation: ppc-pop 0.5s ease-out both; }
+/* Springy feature icon: lifts + wiggles when its card is hovered */
+.ppc-feature { transition: transform 0.25s ease; }
+.group:hover .ppc-feature {
+  transform: translateY(-6px) scale(1.08);
+  animation: ppc-wiggle 0.5s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ppc-float,
+  .ppc-float-slow,
+  .ppc-pop,
+  .group:hover .ppc-feature {
+    animation: none;
+  }
+}
+

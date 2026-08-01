@@ -72,16 +72,59 @@ export async function savePage(formData: FormData) {
   redirect("/admin/pages?saved=1");
 }
 
-// AI-assisted SEO. Uses the Anthropic API when ANTHROPIC_API_KEY is set,
-// otherwise falls back to a solid heuristic so it always does something useful.
+function stripMarkdown(s: string): string {
+  return s
+    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+    .replace(/[#>*_`~]/g, "")
+    .replace(/^\s*-\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firstSentences(text: string, max: number): string {
+  const parts = text.split(/(?<=[.!?])\s+/);
+  let out = "";
+  for (const p of parts) {
+    if (out && (out + " " + p).length > max) break;
+    out = out ? out + " " + p : p;
+  }
+  return out || text.slice(0, max);
+}
+
+// A strong local-SEO heuristic that produces genuinely usable metadata with no
+// external service. Used as the default and as the fallback for the AI path.
+function heuristicSeo(page: { title: string; heroHeading: string | null; heroSub: string | null; body: string }) {
+  const hasBrand = /paws\s*playcare/i.test(page.title);
+  const titleCandidates = hasBrand
+    ? [page.title, `${page.title} — Dog Walking`]
+    : [
+        `${page.title} | Paws Playcare Watford`,
+        `${page.title} | Paws Playcare`,
+        `${page.title} — Watford Dog Walking`,
+        page.title,
+      ];
+  const metaTitle = titleCandidates.find((c) => c.length <= 60) ?? page.title.slice(0, 57).trim() + "…";
+
+  const body = stripMarkdown(page.body);
+  const opener = page.heroSub && page.heroSub.trim().length >= 25 ? stripMarkdown(page.heroSub) : "";
+  // Only lead with the tagline if the body doesn't already say the same thing.
+  const useOpener = opener && !body.toLowerCase().includes(opener.slice(0, 20).toLowerCase());
+  let desc = firstSentences([useOpener ? opener : "", body].filter(Boolean).join(" "), 150).trim();
+  if (!/watford/i.test(desc) && desc.length <= 138) {
+    desc = desc.replace(/[.!?]?\s*$/, "") + " — dog walking & play in Watford.";
+  }
+  if (desc.length > 158) desc = desc.slice(0, 155).replace(/\s+\S*$/, "") + "…";
+  return { metaTitle, metaDescription: desc };
+}
+
+// Auto-generate SEO. Uses the Anthropic API when ANTHROPIC_API_KEY is set for a
+// polished result, otherwise the built-in generator (which always works).
 export async function generateSeo(slug: string) {
   await requireRole([ROLES.ADMIN]);
   const page = await prisma.page.findUnique({ where: { slug } });
   if (!page) return;
 
-  const plain = page.body.replace(/[#*_>`\-]/g, " ").replace(/\s+/g, " ").trim();
-  let metaTitle = `${page.title} — Paws Playcare Watford`;
-  let metaDescription = plain.slice(0, 155).trim();
+  let { metaTitle, metaDescription } = heuristicSeo(page);
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (key) {
@@ -99,7 +142,7 @@ export async function generateSeo(slug: string) {
           messages: [
             {
               role: "user",
-              content: `You write SEO metadata for a Watford dog-walking business called Paws Playcare. For the page titled "${page.title}", write a compelling SEO meta title (max 60 chars) and meta description (max 155 chars). Page content:\n\n${plain.slice(0, 1500)}\n\nReturn ONLY JSON: {"metaTitle":"...","metaDescription":"..."}`,
+              content: `You write SEO metadata for Paws Playcare, a friendly dog walking & play business in Watford. For the page titled "${page.title}", write a compelling SEO meta title (max 60 chars) and meta description (max 155 chars, active voice, include a light call to action). Page content:\n\n${stripMarkdown(page.body).slice(0, 1500)}\n\nReturn ONLY JSON: {"metaTitle":"...","metaDescription":"..."}`,
             },
           ],
         }),
@@ -112,15 +155,13 @@ export async function generateSeo(slug: string) {
         if (json.metaDescription) metaDescription = String(json.metaDescription).slice(0, 160);
       }
     } catch {
-      // fall back to heuristic
+      // keep the heuristic result
     }
   }
 
-  await prisma.page.update({
-    where: { slug },
-    data: { metaTitle, metaDescription },
-  });
+  await prisma.page.update({ where: { slug }, data: { metaTitle, metaDescription } });
   revalidatePath(`/admin/pages/${slug}/edit`);
+  redirect(`/admin/pages/${slug}/edit?seo=1`);
 }
 
 export async function createPage(formData: FormData) {
