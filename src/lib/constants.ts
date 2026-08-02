@@ -98,6 +98,8 @@ export const NOTIF_TYPE = {
   WALK_SKIPPED: "WALK_SKIPPED", // a recurring date fell on a bank holiday and was skipped
   CHANGE_REQUESTED: "CHANGE_REQUESTED",
   CHANGE_RESOLVED: "CHANGE_RESOLVED",
+  INVOICE_ISSUED: "INVOICE_ISSUED", // final invoice sent the evening before payment
+  PAYMENT_SUCCEEDED: "PAYMENT_SUCCEEDED", // card charged successfully
   PAYMENT_FAILED: "PAYMENT_FAILED",
   CARD_EXPIRING: "CARD_EXPIRING",
   ACCOUNT_SUSPENDED: "ACCOUNT_SUSPENDED",

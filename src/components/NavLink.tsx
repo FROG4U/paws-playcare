@@ -69,10 +69,14 @@ export function BottomNav({ items }: { items: NavItem[] }) {
               active ? "text-brand" : "text-muted"
             }`}
           >
-            <span className="relative">
+            <span
+              className={`relative grid h-8 w-14 place-items-center rounded-full transition ${
+                active ? "bg-brand-soft" : ""
+              }`}
+            >
               <Icon name={it.icon} className="h-[1.35rem] w-[1.35rem]" />
               {it.badge ? (
-                <span className="absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
+                <span className="absolute right-2 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
                   {it.badge > 9 ? "9+" : it.badge}
                 </span>
               ) : null}

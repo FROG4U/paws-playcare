@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/money";
 import { Icon } from "@/components/Icon";
 import { createBooking, type BookInput } from "./actions";
+import { ServiceCalendar, SERVICE_PALETTE } from "./ServiceCalendar";
 
 export type BookServiceOption = {
   id: string;
@@ -85,7 +86,6 @@ export function BookingForm({
   const [mode, setMode] = useState<"DATES" | "REPEAT">("DATES");
 
   const [dates, setDates] = useState<string[]>([]);
-  const [dateDraft, setDateDraft] = useState("");
 
   const [daysByService, setDaysByService] = useState<Record<string, number[]>>({
     [services[0].id]: services[0].days,
@@ -101,8 +101,9 @@ export function BookingForm({
   const numDogs = dogIds.length;
   const dogMult = Math.max(1, numDogs);
 
-  // Route each specific date to the selected service running that weekday, and
-  // flag any that can't be booked (weekend / bank holiday / no matching service).
+  // In "Pick dates" mode the calendar itself is the source of truth: each date
+  // routes to whichever service runs that weekday (Field Play Mon–Wed, Walks
+  // Thu–Fri). The calendar blocks weekends/holidays so `bad` stays a safety net.
   const routing = useMemo(() => {
     const byService: Record<string, string[]> = {};
     const bad: { date: string; reason: string }[] = [];
@@ -110,19 +111,25 @@ export function BookingForm({
       const wd = isoWeekday(d);
       if (wd > 5) { bad.push({ date: d, reason: "weekend" }); continue; }
       if (bhSet.has(d)) { bad.push({ date: d, reason: "bank holiday" }); continue; }
-      const svc = selectedServices.find((s) => s.days.includes(wd));
+      const svc = services.find((s) => s.days.includes(wd));
       if (!svc) bad.push({ date: d, reason: "no service" });
       else (byService[svc.id] ||= []).push(d);
     }
     const count = Object.values(byService).reduce((n, a) => n + a.length, 0);
     return { byService, bad, count };
-  }, [dates, selectedServices, bhSet]);
+  }, [dates, services, bhSet]);
+
+  // The services that actually have picked dates (for pricing/summary).
+  const routedServices = useMemo(
+    () => services.filter((s) => (routing.byService[s.id]?.length ?? 0) > 0),
+    [services, routing]
+  );
 
   const datesTotal = useMemo(() => {
     let total = 0;
-    for (const s of selectedServices) total += s.pricePerDog * dogMult * (routing.byService[s.id]?.length ?? 0);
+    for (const s of services) total += s.pricePerDog * dogMult * (routing.byService[s.id]?.length ?? 0);
     return total;
-  }, [selectedServices, routing, dogMult]);
+  }, [services, routing, dogMult]);
 
   // Exact schedule for a repeat booking (bounded end date, or the 12-week
   // horizon for "until I stop it") — so we can show the real total, not a guess.
@@ -154,8 +161,9 @@ export function BookingForm({
   const summary = useMemo(() => {
     const svcList = joinNames(selectedServices.map((s) => s.name));
     if (mode === "DATES") {
-      if (dates.length === 0) return `Choose the days you'd like ${svcList || "a walk"}.`;
-      return `${routing.count} walk${routing.count !== 1 ? "s" : ""} across ${svcList}.`;
+      if (dates.length === 0) return `Tap the days you'd like on the calendar.`;
+      const names = joinNames(routedServices.map((s) => s.name));
+      return `${routing.count} walk${routing.count !== 1 ? "s" : ""}${names ? ` across ${names}` : ""}.`;
     }
     const parts = selectedServices
       .filter((s) => (daysByService[s.id]?.length ?? 0) > 0)
@@ -164,7 +172,7 @@ export function BookingForm({
     const startStr = repeatPlan.first ? prettyDate(repeatPlan.first) : startDate ? prettyDate(startDate) : "…";
     const endStr = endMode === "DATE" ? (endDate ? `until ${prettyDate(endDate)}` : "until …") : "with no end date";
     return `${joinNames(parts)}, starting ${startStr}, ${endStr}.`;
-  }, [mode, dates, routing, selectedServices, daysByService, startDate, endMode, endDate, repeatPlan]);
+  }, [mode, dates, routing, routedServices, selectedServices, daysByService, startDate, endMode, endDate, repeatPlan]);
 
   function toggleService(id: string) {
     setServiceIds((prev) => {
@@ -185,11 +193,8 @@ export function BookingForm({
       const next = cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d].sort((a, b) => a - b);
       return { ...prev, [serviceId]: next };
     });
-  function addDate() {
-    if (!dateDraft) return;
-    setDates((p) => (p.includes(dateDraft) ? p : [...p, dateDraft].sort()));
-    setDateDraft("");
-  }
+  const toggleDate = (d: string) =>
+    setDates((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d].sort()));
   const removeDate = (d: string) => setDates((p) => p.filter((x) => x !== d));
 
   function submit() {
@@ -203,7 +208,7 @@ export function BookingForm({
         setError(`These dates can't be booked: ${routing.bad.map((b) => `${prettyDate(b.date)} (${b.reason})`).join(", ")}.`);
         return;
       }
-      for (const s of selectedServices) {
+      for (const s of services) {
         const ds = routing.byService[s.id];
         if (ds && ds.length > 0) inputs.push({ serviceId: s.id, dogIds, mode: "DATES", dates: ds });
       }
@@ -264,7 +269,8 @@ export function BookingForm({
   if (mode === "DATES" && dates.length > 0 && routing.bad.length === 0) {
     priceLabel = `Total · ${routing.count} walk${routing.count !== 1 ? "s" : ""}`;
     priceValue = formatMoney(datesTotal);
-    priceNote = `${perWalkList} per walk × the dates you picked.`;
+    const datesPerWalk = routedServices.map((s) => formatMoney(s.pricePerDog * dogMult)).join(" + ");
+    priceNote = `${datesPerWalk || perWalkList} per walk × the dates you picked.`;
   } else if (mode === "REPEAT" && ready) {
     priceValue = formatMoney(repeatPlan.total);
     if (endMode === "DATE") {
@@ -280,7 +286,8 @@ export function BookingForm({
     <div className="space-y-6">
       {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 
-      {/* Services (multi-select) */}
+      {/* Services (multi-select) — only for repeat bookings; "Pick dates" uses the calendar */}
+      {mode === "REPEAT" && (
       <section className="card space-y-3">
         <div className="flex items-start gap-2">
           <Icon name="paw" className="mt-0.5 h-5 w-5 text-brand" />
@@ -311,6 +318,7 @@ export function BookingForm({
           })}
         </div>
       </section>
+      )}
 
       {/* Dogs */}
       <section className="card space-y-3">
@@ -332,7 +340,7 @@ export function BookingForm({
       <section className="card space-y-4">
         <h2 className="flex items-center gap-2 text-lg font-bold">
           <Icon name="calendar" className="h-5 w-5 text-brand" />
-          When would you like {selectedServices.length === 1 ? selectedServices[0].name : "your walks"}?
+          When would you like {mode === "REPEAT" && selectedServices.length === 1 ? selectedServices[0].name : "your walks"}?
         </h2>
         <div className="grid grid-cols-2 gap-2">
           {([["DATES", "Pick dates"], ["REPEAT", "Repeat weekly"]] as const).map(([m, label]) => (
@@ -349,21 +357,30 @@ export function BookingForm({
 
         {mode === "DATES" ? (
           <div className="space-y-3">
-            <label className="label">Add one or more dates</label>
-            <div className="flex gap-2">
-              <input type="date" min={todayIso} value={dateDraft} onChange={(e) => setDateDraft(e.target.value)} className="input" />
-              <button type="button" onClick={addDate} className="btn-accent shrink-0">Add</button>
-            </div>
+            <label className="label">Tap the days you&apos;d like</label>
+            <ServiceCalendar
+              services={services}
+              selected={dates}
+              onToggle={toggleDate}
+              todayIso={todayIso}
+              bankHolidays={bhSet}
+            />
             {dates.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {dates.map((d) => {
                   const wd = isoWeekday(d);
-                  const svc = wd <= 5 && !bhSet.has(d) ? selectedServices.find((s) => s.days.includes(wd)) : undefined;
+                  const svcIdx = wd <= 5 && !bhSet.has(d) ? services.findIndex((s) => s.days.includes(wd)) : -1;
+                  const svc = svcIdx >= 0 ? services[svcIdx] : undefined;
                   const badReason = wd > 5 ? "weekend" : bhSet.has(d) ? "bank holiday" : svc ? null : "no service";
+                  const pal = svcIdx >= 0 ? SERVICE_PALETTE[svcIdx % SERVICE_PALETTE.length] : null;
                   return (
-                    <span key={d} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${badReason ? "bg-danger/10 text-danger" : "bg-brand-soft text-brand-dark"}`}>
+                    <span
+                      key={d}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${badReason ? "bg-danger/10 text-danger" : ""}`}
+                      style={pal && !badReason ? { backgroundColor: pal.soft, color: pal.softText } : undefined}
+                    >
                       {prettyDate(d)}
-                      {svc && selectedServices.length > 1 ? ` · ${svc.name}` : ""}
+                      {svc ? ` · ${svc.name}` : ""}
                       {badReason ? ` · ${badReason}` : ""}
                       <button type="button" onClick={() => removeDate(d)} aria-label={`Remove ${d}`} className="opacity-60 hover:text-danger">×</button>
                     </span>
@@ -372,8 +389,7 @@ export function BookingForm({
               </div>
             )}
             <p className="text-xs text-muted">
-              Each date is booked with the service that runs that weekday
-              {selectedServices.length > 1 ? " (shown on each date)" : ""}. Weekends and bank holidays aren&apos;t available.
+              Each date is booked with the service that runs that weekday. Weekends and bank holidays aren&apos;t available.
             </p>
           </div>
         ) : (

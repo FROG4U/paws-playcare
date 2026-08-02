@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@stripe/react-stripe-js": "^6.8.0",
+    "@stripe/stripe-js": "^9.12.1",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.4.0",
     "jose": "^6.2.5",
@@ -17,6 +19,7 @@
     "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "resend": "^6.18.1",
     "sharp": "^0.35.3",
     "stripe": "^22.4.0",
     "zod": "^4.4.3"

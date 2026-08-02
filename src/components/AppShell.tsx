@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "./Logo";
 import { Icon } from "./Icon";
 import { SideNav, BottomNav, type NavItem } from "./NavLink";
+import { InstallMenuButton } from "./pwa";
 import { logoutAction } from "@/app/actions/auth";
 
 function initials(name: string) {
@@ -38,6 +39,9 @@ export function AppShell({
             Menu
           </p>
           <SideNav items={items} />
+          <div className="mt-3">
+            <InstallMenuButton variant="sidebar" />
+          </div>
         </div>
         <div className="border-t border-border p-3">
           <div className="flex items-center gap-3 rounded-xl px-2 py-1.5">
@@ -67,7 +71,8 @@ export function AppShell({
       {/* Mobile top bar */}
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur md:hidden">
         <Logo />
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
+          <InstallMenuButton variant="chip" />
           <NotifBell unread={unread} href={notifHref} />
           <form action={logoutAction}>
             <button

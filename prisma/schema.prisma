@@ -31,6 +31,7 @@ model User {
   approvedById  String?
   suspendedAt   DateTime?
   suspendReason String?
+  archivedAt    DateTime? // soft archive — hidden from active lists, reversible
 
   // Client profile
   address           String?

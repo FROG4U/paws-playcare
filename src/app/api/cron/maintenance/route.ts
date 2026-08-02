@@ -1,0 +1,19 @@
+import { cronAuthorized } from "@/lib/cron-auth";
+import { warnExpiringCards, blockOverdueClients } from "@/lib/billing-run";
+
+export const dynamic = "force-dynamic";
+
+// Run once a day (e.g. morning): warn about expiring cards and block accounts
+// with invoices unpaid past the grace period.
+async function run(req: Request) {
+  if (!cronAuthorized(req)) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  const now = new Date();
+  const cards = await warnExpiringCards(now);
+  const blocks = await blockOverdueClients(now);
+  return Response.json({ ok: true, ...cards, ...blocks });
+}
+
+export const GET = run;
+export const POST = run;
