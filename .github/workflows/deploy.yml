@@ -1,0 +1,45 @@
+# Auto-deploy to the Plesk server on every push to main.
+#
+# Requires SSH access to the server and these repo Secrets
+# (GitHub → Settings → Secrets and variables → Actions):
+#   SSH_HOST      the server hostname or IP
+#   SSH_USER      the Plesk system/subscription user
+#   SSH_KEY       a private SSH key whose public key is on the server
+#   DEPLOY_PATH   the app's folder on the server (a git clone of this repo)
+#   SSH_PORT      optional, defaults to 22
+#
+# The server folder must already be a git clone of this repo with `.env` in
+# place (see DEPLOYMENT.md). This workflow pulls, installs, migrates the DB
+# schema, rebuilds, and restarts the Node app (Passenger reads tmp/restart.txt).
+#
+# No SSH? Use Plesk's built-in Git deployment instead (DEPLOYMENT.md) and delete
+# this file.
+
+name: Deploy to Plesk
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git pull origin main
+            npm install --include=dev
+            npx prisma generate
+            npx prisma db push
+            npm run build
+            mkdir -p tmp && touch tmp/restart.txt
+            echo "Deployed $(git rev-parse --short HEAD)"
