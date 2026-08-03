@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "plesk-deploy": "npm install --include=dev && prisma generate && prisma db push && next build"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
