@@ -24,8 +24,8 @@ export default async function OnlineBookingForm() {
         <Link href="/">
           <Logo className="text-xl" />
         </Link>
-        <Link href="/PPC" className="text-sm font-semibold text-muted hover:text-brand-dark">
-          Staff login
+        <Link href="/" className="text-sm font-semibold text-muted hover:text-brand-dark">
+          ← Back to home
         </Link>
       </header>
 

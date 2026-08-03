@@ -37,6 +37,11 @@ export default async function StaffLogin() {
             Book / log in here
           </Link>
         </p>
+        <p className="mt-2 text-center text-sm">
+          <Link href="/" className="font-semibold text-muted hover:text-brand-dark">
+            ← Back to home
+          </Link>
+        </p>
       </div>
     </div>
   );
