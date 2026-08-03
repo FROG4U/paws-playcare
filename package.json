@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "plesk-deploy": "npm install --include=dev && prisma generate && prisma db push && next build"
+    "plesk-deploy": "npm install --include=dev && prisma generate && prisma db push && next build",
+    "seed": "node --env-file=.env prisma/seed.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
