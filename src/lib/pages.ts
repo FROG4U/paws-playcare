@@ -39,20 +39,6 @@ My commitment to animal care extends to volunteer work with the RSPCA, where I r
 Away from animals I keep active through running, swimming and hockey. I trained as a primary school teacher and swim instructor, though I'm now "retired" from those roles.`,
   },
   {
-    slug: "our-services",
-    heroImage: "/brand/hero-home.webp",
-    navLabel: "Services",
-    title: "Our services",
-    heroHeading: "How we can help",
-    heroSub: "Walks, play and care tailored to your dog.",
-    navOrder: 2,
-    metaTitle: "Our services — Paws Playcare Watford",
-    metaDescription: "Puppy pop-ins, social group walks, adventure walks, play & walk sessions, pet taxi, dog training and pet food delivery in Watford.",
-    body: `## How we can help
-
-From quick puppy pop-ins to full adventure walks, here's everything we offer to keep your dog happy, active and well cared for.`,
-  },
-  {
     slug: "playground",
     heroImage: "/brand/hero-grace.webp",
     navLabel: "Playground",
@@ -73,11 +59,11 @@ Bookings can often be arranged on the day depending on availability — just use
   {
     slug: "prices",
     heroImage: "/brand/hero-home.webp",
-    navLabel: "Prices",
-    title: "Prices",
+    navLabel: "Services",
+    title: "Services",
     heroHeading: "Simple, fair pricing",
     heroSub: "Priced per dog, with clear rates.",
-    navOrder: 4,
+    navOrder: 2,
     metaTitle: "Prices — Paws Playcare Watford",
     metaDescription: "Clear per-dog pricing for dog walking and play in Watford. Bank holidays and weekends are handled fairly.",
     body: `## Our prices
