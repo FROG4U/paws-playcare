@@ -35,6 +35,23 @@ async function main() {
     },
   });
 
+  // Kitty Cole — admin/owner. Password stored as a bcrypt hash only (never
+  // plaintext). Role/status enforced on re-seed; password only set on create so
+  // a re-seed never resets it.
+  await prisma.user.upsert({
+    where: { email: "kitty@pawsplaycare.co.uk" },
+    update: { role: "ADMIN", status: "ACTIVE", canWork: true },
+    create: {
+      email: "kitty@pawsplaycare.co.uk",
+      passwordHash: "$2b$10$t3oCud/oF6/5Jfj1dWfqgeqIwRXo0zdcOwVTmHsMk7s7320DZFjxi",
+      role: "ADMIN",
+      name: "Kitty Cole",
+      status: "ACTIVE",
+      canWork: true,
+      approvedAt: new Date(),
+    },
+  });
+
   // Site content: the Prices page is now the "Services" page (sits in the
   // Services nav slot), and the old standalone Services page is removed.
   // No-ops if the pages haven't been seeded yet.
