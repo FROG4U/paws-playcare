@@ -155,3 +155,25 @@ body {
   }
 }
 
+
+/* Print / "Save as PDF" — show only the invoice, hide the app chrome. */
+@media print {
+  aside,
+  header,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .invoice-print {
+    max-width: 100% !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+}

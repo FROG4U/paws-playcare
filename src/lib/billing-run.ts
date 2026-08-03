@@ -16,7 +16,11 @@ import { notify, notifyAdmins } from "./notifications";
 
 const GRACE_DAYS = 7; // how long an unpaid invoice is retried before the account is blocked
 
+const appUrl = () =>
+  (process.env.NEXT_PUBLIC_APP_URL || "https://pawsplaycare.co.uk").replace(/\/$/, "");
+
 type InvoiceWithItems = {
+  id: string;
   number: string;
   cadence: string;
   periodStart: Date;
@@ -46,7 +50,12 @@ function invoiceEmailHtml(inv: InvoiceWithItems): string {
     <p style="margin:20px 0 0;padding:12px 16px;background:#eef7fb;border-radius:10px;color:#1f6f95;font-size:14px;">
       💳 We'll take <strong>${formatMoney(inv.total)}</strong> from your card on file on <strong>${formatDate(inv.dueAt)}</strong>.
       Nothing to do — just making sure you've seen it first.</p>
-    <p style="margin:16px 0 0;font-size:13px;color:#64748b;">Invoice ${inv.number}</p>`;
+    <p style="margin:20px 0 0;">
+      <a href="${appUrl()}/client/invoices/${inv.id}"
+         style="display:inline-block;background:#2ea6d8;color:#fff;text-decoration:none;padding:11px 20px;border-radius:12px;font-weight:700;">View &amp; download invoice</a>
+    </p>
+    <p style="margin:20px 0 0;color:#333a41;">Thank you for choosing us — we loved spending time with your dog! 🐾</p>
+    <p style="margin:12px 0 0;font-size:13px;color:#64748b;">Invoice ${inv.number}</p>`;
 
   return emailShell("Your invoice is ready", body);
 }
@@ -93,6 +102,7 @@ export async function finalizeDueInvoices(now: Date = new Date()) {
       to: inv.client.email,
       subject: `Your Paws Playcare invoice — ${formatMoney(inv.total)}`,
       html: invoiceEmailHtml({
+        id: inv.id,
         number: inv.number,
         cadence: inv.cadence,
         periodStart: inv.periodStart,

@@ -85,6 +85,7 @@ export default async function ClientInvoicesPage() {
           total={inv.total}
           dueLabel={inv.dueAt ? `Payment due ${formatDate(inv.dueAt)}` : "Awaiting payment"}
           items={inv.items}
+          href={`/client/invoices/${inv.id}`}
         />
       ))}
 
@@ -108,6 +109,7 @@ export default async function ClientInvoicesPage() {
                   : inv.failureReason || "Payment failed — we'll retry."
               }
               items={inv.items}
+              href={`/client/invoices/${inv.id}`}
             />
           ))}
         </section>
@@ -132,6 +134,7 @@ function InvoiceCard({
   total,
   dueLabel,
   items,
+  href,
 }: {
   tone: Tone;
   heading: string;
@@ -139,6 +142,7 @@ function InvoiceCard({
   total: number;
   dueLabel: string;
   items: { id: string; description: string; amount: number }[];
+  href?: string;
 }) {
   const badge = TONE_BADGE[tone];
   return (
@@ -165,6 +169,12 @@ function InvoiceCard({
           <p className="text-lg font-extrabold">{formatMoney(total)}</p>
           <p className="text-sm text-muted">{dueLabel}</p>
         </div>
+        {href && (
+          <a href={href} className="btn-outline text-sm">
+            <Icon name="receipt" className="h-4 w-4" />
+            View / download
+          </a>
+        )}
       </div>
     </div>
   );
