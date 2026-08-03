@@ -160,6 +160,7 @@ export async function chargeDueInvoices(now: Date = new Date()) {
         description: `Paws Playcare invoice ${inv.number}`,
         // Per-attempt key so retries genuinely re-charge, not return the old result.
         idempotencyKey: `inv_${inv.id}_${inv.attemptCount}`,
+        metadata: { invoiceId: inv.id, invoiceNumber: inv.number },
       });
       await prisma.invoice.update({
         where: { id: inv.id },

@@ -87,6 +87,7 @@ export async function chargeOffSession(params: {
   amount: number;
   description: string;
   idempotencyKey?: string;
+  metadata?: Record<string, string>;
 }) {
   const stripe = getStripe();
   const user = await prisma.user.findUnique({ where: { id: params.userId } });
@@ -102,6 +103,7 @@ export async function chargeOffSession(params: {
       off_session: true,
       confirm: true,
       description: params.description,
+      metadata: params.metadata,
     },
     params.idempotencyKey ? { idempotencyKey: params.idempotencyKey } : undefined
   );
