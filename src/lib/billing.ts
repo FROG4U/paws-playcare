@@ -62,10 +62,39 @@ export function periodLabel(cadence: string, p: BillingPeriod): string {
   return `${formatDate(p.start)} – ${formatDate(p.end)}`;
 }
 
-function invoiceLineFor(walk: { serviceName: string | null; date: Date; numDogs: number }): string {
+function invoiceLineFor(
+  walk: { serviceName: string | null; date: Date },
+  dogLabel: string
+): string {
   const svc = walk.serviceName ?? "Walk";
-  const dogs = `${walk.numDogs} dog${walk.numDogs > 1 ? "s" : ""}`;
-  return `${svc} · ${formatDate(walk.date)} · ${dogs}`;
+  return `${svc} · ${formatDate(walk.date)} · ${dogLabel}`;
+}
+
+// "Buddy" · "Buddy & Rex" · "Buddy, Max & Rex"
+function joinDogNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+}
+
+// Dog names for a walk's invoice line, from its booking's dog list.
+// Falls back to a plain count if the walk has no booking / recorded dogs.
+async function dogLabelFor(walk: {
+  numDogs: number;
+  booking: { dogIds: string } | null;
+}): Promise<string> {
+  try {
+    const ids = walk.booking?.dogIds ? JSON.parse(walk.booking.dogIds) : [];
+    if (Array.isArray(ids) && ids.length) {
+      const dogs = await prisma.dog.findMany({
+        where: { id: { in: ids } },
+        select: { name: true },
+        orderBy: { createdAt: "asc" },
+      });
+      const names = dogs.map((d) => d.name).filter(Boolean);
+      if (names.length) return joinDogNames(names);
+    }
+  } catch {}
+  return `${walk.numDogs} dog${walk.numDogs > 1 ? "s" : ""}`;
 }
 
 // Readable, unique-ish invoice number: INV-YYYYMMDD-XXXX (period end + random).
@@ -98,7 +127,11 @@ async function recomputeTotals(invoiceId: string): Promise<void> {
 export async function addCompletedWalkToInvoice(walkId: string): Promise<string | null> {
   const walk = await prisma.walk.findUnique({
     where: { id: walkId },
-    include: { client: { select: { payCadence: true } }, invoiceItem: true },
+    include: {
+      client: { select: { payCadence: true } },
+      invoiceItem: true,
+      booking: { select: { dogIds: true } },
+    },
   });
   if (!walk) throw new Error("WALK_NOT_FOUND");
   if (walk.invoiceItem) return walk.invoiceItem.invoiceId; // already invoiced
@@ -135,7 +168,7 @@ export async function addCompletedWalkToInvoice(walkId: string): Promise<string 
     data: {
       invoiceId: invoice.id,
       walkId: walk.id,
-      description: invoiceLineFor(walk),
+      description: invoiceLineFor(walk, await dogLabelFor(walk)),
       date: walk.date,
       amount: walk.price,
     },
