@@ -6,6 +6,31 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 import { saveCompressedImage, deleteUpload } from "@/lib/upload";
+import { sendEmail, emailShell, emailConfigured } from "@/lib/email";
+
+// Send a test email to confirm Resend is wired up (key + verified domain).
+export async function sendTestEmail(
+  _prev: { ok: boolean; error?: string } | null,
+  formData: FormData
+): Promise<{ ok: boolean; error?: string }> {
+  await requireRole([ROLES.ADMIN]);
+  const to = String(formData.get("to") || "").trim();
+  if (!to || !to.includes("@")) return { ok: false, error: "Enter a valid email address." };
+  if (!emailConfigured()) {
+    return { ok: false, error: "RESEND_API_KEY isn't set on the server — add it to .env and Restart App." };
+  }
+  const res = await sendEmail({
+    to,
+    subject: "Test email from Paws Playcare 🐾",
+    html: emailShell(
+      "It works!",
+      "<p>This is a test from your Paws Playcare app. If you're reading this, Resend is connected and invoice emails will send correctly.</p>"
+    ),
+  });
+  if (res.skipped) return { ok: false, error: "Email isn't configured (no API key found)." };
+  if (!res.ok) return { ok: false, error: res.error || "Send failed — check the key and that the domain is verified." };
+  return { ok: true };
+}
 
 function refreshPublic(slug: string) {
   revalidatePath("/admin/pages");

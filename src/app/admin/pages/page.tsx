@@ -4,6 +4,7 @@ import { getSettings } from "@/lib/pricing";
 import { PageHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { saveSiteInfo, createPage } from "./actions";
+import { TestEmailButton } from "./TestEmailButton";
 
 export default async function PagesAdmin({
   searchParams,
@@ -93,6 +94,8 @@ export default async function PagesAdmin({
         </div>
         <button className="btn-primary">Save site info</button>
       </form>
+
+      <TestEmailButton defaultTo={s.contactEmail || ""} />
     </div>
   );
 }
