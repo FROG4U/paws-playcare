@@ -3,7 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { ROLES, USER_STATUS, WALK_STATUS } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { dayKey, formatDate } from "@/lib/dates";
+import { getServices } from "@/lib/services";
+import { serviceColorMap } from "@/lib/service-colors";
 import { PageHeader, StatCard, EmptyState } from "@/components/ui";
+import { ServiceBadge } from "@/components/ServiceBadge";
 import { Icon } from "@/components/Icon";
 
 export default async function AdminHome() {
@@ -25,6 +28,8 @@ export default async function AdminHome() {
       prisma.user.count({ where: { role: ROLES.CLIENT, status: USER_STATUS.ACTIVE } }),
       prisma.invoice.aggregate({ where: { status: "OPEN" }, _sum: { total: true } }),
     ]);
+
+  const colorMap = serviceColorMap(await getServices());
 
   return (
     <div className="space-y-6">
@@ -62,7 +67,10 @@ export default async function AdminHome() {
                     <Icon name="paw" className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="font-semibold">{w.timeSlot} · {w.client.name}</p>
+                    <p className="flex items-center gap-2 font-semibold">
+                      {w.timeSlot} · {w.client.name}
+                      <ServiceBadge name={w.serviceName ?? "Walk"} colorIndex={w.serviceName != null ? colorMap[w.serviceName] ?? null : null} />
+                    </p>
                     <p className="text-sm text-muted">
                       {w.numDogs} dog{w.numDogs > 1 ? "s" : ""} · {w.worker ? w.worker.name : "Unassigned"}
                     </p>

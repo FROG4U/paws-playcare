@@ -27,6 +27,19 @@ export async function getServices() {
   return prisma.service.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
 }
 
+// Resolve a service from an already-loaded list by id (preferred) or name.
+export function serviceForName<T extends { id: string; name: string }>(
+  services: T[],
+  serviceId: string | null,
+  serviceName: string | null
+): T | null {
+  return (
+    services.find((s) => s.id === serviceId) ??
+    services.find((s) => s.name === serviceName) ??
+    null
+  );
+}
+
 export function serviceDays(service: { daysOfWeek: string }): number[] {
   try {
     const arr = JSON.parse(service.daysOfWeek);

@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 import type { BookServiceOption } from "./BookingForm";
+import { SERVICE_PALETTE } from "@/lib/service-colors";
+
+export { SERVICE_PALETTE };
 
 const WD_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const MONTHS = [
@@ -9,15 +12,6 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 const DAY_SHORT: Record<number, string> = { 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri" };
-
-// One colour per service, in the order services are configured. Explicit hex
-// (applied via inline style) so it renders identically in every browser and
-// never depends on a Tailwind colour utility being present in the CSS bundle.
-export const SERVICE_PALETTE = [
-  { soft: "#e2f1fb", solid: "#2ea6d8", softText: "#1c6f95" }, // brand sky-blue
-  { soft: "#fbeede", solid: "#e0912e", softText: "#a5620d" }, // amber
-  { soft: "#e2f4e9", solid: "#16a34a", softText: "#0e7a36" }, // green
-];
 
 function isoOf(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;

@@ -2,7 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, dayKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
+import { getServices } from "@/lib/services";
+import { serviceColorMap } from "@/lib/service-colors";
 import { PageHeader, EmptyState } from "@/components/ui";
+import { ServiceBadge } from "@/components/ServiceBadge";
 import { Icon } from "@/components/Icon";
 import { CompleteButton, UndoButton } from "./WalkActions";
 
@@ -35,6 +38,9 @@ export default async function BookingsPage() {
     }),
   ]);
 
+  const colorMap = serviceColorMap(await getServices());
+  const colorOf = (name: string | null) => (name != null ? colorMap[name] ?? null : null);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -57,6 +63,7 @@ export default async function BookingsPage() {
                 <WalkFacts
                   client={w.client.name}
                   service={w.serviceName}
+                  colorIndex={colorOf(w.serviceName)}
                   date={w.date}
                   numDogs={w.numDogs}
                   price={w.price}
@@ -79,6 +86,7 @@ export default async function BookingsPage() {
                 <WalkFacts
                   client={w.client.name}
                   service={w.serviceName}
+                  colorIndex={colorOf(w.serviceName)}
                   date={w.date}
                   numDogs={w.numDogs}
                   price={w.price}
@@ -102,6 +110,7 @@ export default async function BookingsPage() {
                 <WalkFacts
                   client={w.client.name}
                   service={w.serviceName}
+                  colorIndex={colorOf(w.serviceName)}
                   date={w.date}
                   numDogs={w.numDogs}
                   price={w.price}
@@ -132,6 +141,7 @@ function SectionTitle({ icon, title, count }: { icon: string; title: string; cou
 function WalkFacts({
   client,
   service,
+  colorIndex,
   date,
   numDogs,
   price,
@@ -140,6 +150,7 @@ function WalkFacts({
 }: {
   client: string;
   service: string | null;
+  colorIndex?: number | null;
   date: Date;
   numDogs: number;
   price: number;
@@ -148,8 +159,9 @@ function WalkFacts({
 }) {
   return (
     <div>
-      <p className="font-semibold">
-        {client} · {service ?? "Walk"}
+      <p className="flex items-center gap-2 font-semibold">
+        {client}
+        <ServiceBadge name={service ?? "Walk"} colorIndex={colorIndex} />
       </p>
       <p className="text-sm text-muted">
         {formatDate(date)} · {numDogs} dog{numDogs > 1 ? "s" : ""} · {formatMoney(price)}

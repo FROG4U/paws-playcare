@@ -2,6 +2,7 @@ import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { periodLabel } from "@/lib/billing";
 import { INVOICE_STATUS } from "@/lib/constants";
+import { ServiceDot } from "@/components/ServiceBadge";
 
 export type InvoiceDoc = {
   number: string;
@@ -14,7 +15,7 @@ export type InvoiceDoc = {
   dueAt: Date | null;
   paidAt: Date | null;
   createdAt: Date;
-  items: { id: string; description: string; date: Date; amount: number }[];
+  items: { id: string; description: string; date: Date; amount: number; colorIndex?: number | null }[];
 };
 
 export type InvoiceParty = {
@@ -112,7 +113,12 @@ export function InvoiceDocument({
         <tbody>
           {invoice.items.map((it) => (
             <tr key={it.id} className="border-b border-border/70">
-              <td className="py-2.5">{it.description}</td>
+              <td className="py-2.5">
+                <span className="inline-flex items-center gap-2">
+                  <ServiceDot colorIndex={it.colorIndex} />
+                  {it.description}
+                </span>
+              </td>
               <td className="py-2.5 text-right font-medium">{formatMoney(it.amount)}</td>
             </tr>
           ))}

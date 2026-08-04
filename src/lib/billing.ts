@@ -70,6 +70,18 @@ function invoiceLineFor(
   return `${svc} · ${formatDate(walk.date)} · ${dogLabel}`;
 }
 
+// Full invoice-line description for a walk, resolving dog names. Reused both when
+// an invoice item is first created and when rendering (so older items whose
+// stored text still says "1 dog" display the dog's name too).
+export async function invoiceLineForWalk(walk: {
+  serviceName: string | null;
+  date: Date;
+  numDogs: number;
+  booking: { dogIds: string } | null;
+}): Promise<string> {
+  return invoiceLineFor(walk, await dogLabelFor(walk));
+}
+
 // "Buddy" · "Buddy & Rex" · "Buddy, Max & Rex"
 function joinDogNames(names: string[]): string {
   if (names.length <= 1) return names[0] ?? "";

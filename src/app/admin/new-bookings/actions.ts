@@ -17,11 +17,11 @@ function refresh() {
 export async function acceptBooking(bookingId: string) {
   const admin = await requireRole([ROLES.ADMIN]);
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-  if (!booking || booking.reviewedAt) return;
+  if (!booking) return;
 
   await prisma.booking.update({
     where: { id: bookingId },
-    data: { reviewedAt: new Date(), reviewedById: admin.id, decision: "ACCEPTED" },
+    data: { reviewedAt: new Date(), reviewedById: admin.id, decision: "ACCEPTED", status: "ACTIVE" },
   });
 
   await notify({
@@ -38,7 +38,7 @@ export async function acceptBooking(bookingId: string) {
 export async function rejectBooking(bookingId: string, reason?: string) {
   const admin = await requireRole([ROLES.ADMIN]);
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-  if (!booking || booking.reviewedAt) return;
+  if (!booking) return;
 
   await prisma.$transaction([
     prisma.booking.update({
