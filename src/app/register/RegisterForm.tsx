@@ -237,7 +237,7 @@ export function RegisterForm({ slotGroups }: { slotGroups: SlotGroup[] }) {
       {dogs.map((dog, i) => (
         <section key={i} className="card space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Dog {dogs.length > 1 ? i + 1 : ""}</h2>
+            <h2 className="text-lg font-bold">{dog.name.trim() || `Dog ${dogs.length > 1 ? i + 1 : ""}`.trim()}</h2>
             {dogs.length > 1 && (
               <button type="button" className="text-sm font-semibold text-danger" onClick={() => setDogs((prev) => prev.filter((_, idx) => idx !== i))}>
                 Remove
