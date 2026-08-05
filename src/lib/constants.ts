@@ -67,6 +67,9 @@ export const WALK_STATUS_LABELS: Record<string, string> = {
   DECLINED: "Declined",
 };
 
+// A walk cancellation with fewer than this many days' notice is chargeable.
+export const CANCEL_NOTICE_DAYS = 7;
+
 export const INVOICE_STATUS = {
   OPEN: "OPEN",
   PAID: "PAID",
@@ -77,6 +80,7 @@ export const INVOICE_STATUS = {
 export const CHANGE_REQUEST_TYPE = {
   DATE_CHANGE: "DATE_CHANGE",
   SHIFT_SWAP: "SHIFT_SWAP",
+  CANCELLATION: "CANCELLATION", // client asks to cancel an upcoming walk
 } as const;
 
 export const CHANGE_REQUEST_STATUS = {
@@ -98,6 +102,8 @@ export const NOTIF_TYPE = {
   WALK_SKIPPED: "WALK_SKIPPED", // a recurring date fell on a bank holiday and was skipped
   CHANGE_REQUESTED: "CHANGE_REQUESTED",
   CHANGE_RESOLVED: "CHANGE_RESOLVED",
+  CANCELLATION_REQUESTED: "CANCELLATION_REQUESTED", // client asked to cancel a walk (notify admins)
+  CANCELLATION_RESOLVED: "CANCELLATION_RESOLVED",   // admin approved/declined the cancellation (notify client)
   INVOICE_ISSUED: "INVOICE_ISSUED", // final invoice sent the evening before payment
   PAYMENT_SUCCEEDED: "PAYMENT_SUCCEEDED", // card charged successfully
   PAYMENT_FAILED: "PAYMENT_FAILED",

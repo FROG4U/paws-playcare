@@ -83,16 +83,17 @@ export function BookingForm({
 
   const [serviceIds, setServiceIds] = useState<string[]>([services[0].id]);
   const [dogIds, setDogIds] = useState<string[]>(dogs.length === 1 ? [dogs[0].id] : []);
-  const [mode, setMode] = useState<"DATES" | "REPEAT">("DATES");
 
-  const [dates, setDates] = useState<string[]>([]);
-
+  // Regular (ongoing repeating) booking
   const [daysByService, setDaysByService] = useState<Record<string, number[]>>({
     [services[0].id]: services[0].days,
   });
   const [startDate, setStartDate] = useState("");
-  const [endMode, setEndMode] = useState<"DATE" | "FOREVER">("DATE");
-  const [endDate, setEndDate] = useState("");
+  const [agreeTerms, setAgreeTerms] = useState(false);
+
+  // Extra one-off days (collapsible)
+  const [extraOpen, setExtraOpen] = useState(false);
+  const [dates, setDates] = useState<string[]>([]);
 
   const selectedServices = useMemo(
     () => services.filter((s) => serviceIds.includes(s.id)),
@@ -101,9 +102,8 @@ export function BookingForm({
   const numDogs = dogIds.length;
   const dogMult = Math.max(1, numDogs);
 
-  // In "Pick dates" mode the calendar itself is the source of truth: each date
-  // routes to whichever service runs that weekday (Field Play Mon–Wed, Walks
-  // Thu–Fri). The calendar blocks weekends/holidays so `bad` stays a safety net.
+  // Extra dates route to whichever service runs that weekday (calendar blocks
+  // weekends/holidays, so `bad` is a safety net).
   const routing = useMemo(() => {
     const byService: Record<string, string[]> = {};
     const bad: { date: string; reason: string }[] = [];
@@ -119,22 +119,19 @@ export function BookingForm({
     return { byService, bad, count };
   }, [dates, services, bhSet]);
 
-  // The services that actually have picked dates (for pricing/summary).
   const routedServices = useMemo(
     () => services.filter((s) => (routing.byService[s.id]?.length ?? 0) > 0),
     [services, routing]
   );
-
   const datesTotal = useMemo(() => {
     let total = 0;
     for (const s of services) total += s.pricePerDog * dogMult * (routing.byService[s.id]?.length ?? 0);
     return total;
   }, [services, routing, dogMult]);
 
-  // Exact schedule for a repeat booking (bounded end date, or the 12-week
-  // horizon for "until I stop it") — so we can show the real total, not a guess.
+  // Exact schedule for the regular ongoing booking over the next 12 weeks.
   const repeatPlan = useMemo(() => {
-    const effEnd = endMode === "DATE" ? endDate : (startDate ? addDaysIso(startDate, ONGOING_HORIZON_DAYS) : "");
+    const effEnd = startDate ? addDaysIso(startDate, ONGOING_HORIZON_DAYS) : "";
     let total = 0, count = 0;
     let first: string | null = null;
     if (startDate && effEnd) {
@@ -148,31 +145,11 @@ export function BookingForm({
       }
     }
     return { total, count, first };
-  }, [selectedServices, daysByService, startDate, endMode, endDate, dogMult, bhSet]);
+  }, [selectedServices, daysByService, startDate, dogMult, bhSet]);
 
-  const ready =
-    mode === "DATES"
-      ? dates.length > 0 && routing.bad.length === 0
-      : selectedServices.some((s) => (daysByService[s.id]?.length ?? 0) > 0) &&
-        !!startDate &&
-        (endMode === "FOREVER" || !!endDate) &&
-        repeatPlan.count > 0;
-
-  const summary = useMemo(() => {
-    const svcList = joinNames(selectedServices.map((s) => s.name));
-    if (mode === "DATES") {
-      if (dates.length === 0) return `Tap the days you'd like on the calendar.`;
-      const names = joinNames(routedServices.map((s) => s.name));
-      return `${routing.count} walk${routing.count !== 1 ? "s" : ""}${names ? ` across ${names}` : ""}.`;
-    }
-    const parts = selectedServices
-      .filter((s) => (daysByService[s.id]?.length ?? 0) > 0)
-      .map((s) => `${s.name} every ${joinDays(daysByService[s.id])}`);
-    if (parts.length === 0) return `Choose the days you'd like ${svcList || "a walk"}.`;
-    const startStr = repeatPlan.first ? prettyDate(repeatPlan.first) : startDate ? prettyDate(startDate) : "…";
-    const endStr = endMode === "DATE" ? (endDate ? `until ${prettyDate(endDate)}` : "until …") : "with no end date";
-    return `${joinNames(parts)}, starting ${startStr}, ${endStr}.`;
-  }, [mode, dates, routing, routedServices, selectedServices, daysByService, startDate, endMode, endDate, repeatPlan]);
+  const regularHasDays = selectedServices.some((s) => (daysByService[s.id]?.length ?? 0) > 0);
+  const regularReady = regularHasDays && !!startDate && agreeTerms && numDogs > 0 && repeatPlan.count > 0;
+  const extraReady = dates.length > 0 && routing.bad.length === 0 && numDogs > 0;
 
   function toggleService(id: string) {
     setServiceIds((prev) => {
@@ -197,33 +174,7 @@ export function BookingForm({
     setDates((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d].sort()));
   const removeDate = (d: string) => setDates((p) => p.filter((x) => x !== d));
 
-  function submit() {
-    setError(null);
-    if (numDogs === 0) { setError("Please select at least one dog."); return; }
-
-    const inputs: BookInput[] = [];
-    if (mode === "DATES") {
-      if (dates.length === 0) { setError("Please add at least one date."); return; }
-      if (routing.bad.length > 0) {
-        setError(`These dates can't be booked: ${routing.bad.map((b) => `${prettyDate(b.date)} (${b.reason})`).join(", ")}.`);
-        return;
-      }
-      for (const s of services) {
-        const ds = routing.byService[s.id];
-        if (ds && ds.length > 0) inputs.push({ serviceId: s.id, dogIds, mode: "DATES", dates: ds });
-      }
-    } else {
-      if (!startDate) { setError("Please pick a start date."); return; }
-      if (endMode === "DATE" && !endDate) { setError("Please pick an end date, or choose to repeat ongoing."); return; }
-      for (const s of selectedServices) {
-        const ds = daysByService[s.id] ?? [];
-        if (ds.length > 0) {
-          inputs.push({ serviceId: s.id, dogIds, mode: "REPEAT", days: ds, startDate, endMode, endDate: endMode === "DATE" ? endDate : undefined });
-        }
-      }
-      if (inputs.length === 0) { setError("Please choose at least one day of the week."); return; }
-    }
-
+  function runInputs(inputs: BookInput[]) {
     startTransition(async () => {
       let created = 0, skipped = 0, ongoing = false, bookings = 0;
       for (const inp of inputs) {
@@ -240,6 +191,39 @@ export function BookingForm({
     });
   }
 
+  function submitRegular() {
+    setError(null);
+    if (numDogs === 0) { setError("Please select at least one dog."); return; }
+    if (!regularHasDays) { setError("Please choose at least one regular day."); return; }
+    if (!startDate) { setError("Please pick a start date."); return; }
+    if (!agreeTerms) { setError("Please tick the box to agree to the weekly terms."); return; }
+    const inputs: BookInput[] = [];
+    for (const s of selectedServices) {
+      const ds = daysByService[s.id] ?? [];
+      if (ds.length > 0) {
+        inputs.push({ serviceId: s.id, dogIds, mode: "REPEAT", days: ds, startDate, endMode: "FOREVER", agreeWeekly: true });
+      }
+    }
+    if (inputs.length === 0) { setError("Please choose at least one regular day."); return; }
+    runInputs(inputs);
+  }
+
+  function submitExtra() {
+    setError(null);
+    if (numDogs === 0) { setError("Please select at least one dog."); return; }
+    if (dates.length === 0) { setError("Please tap at least one extra day."); return; }
+    if (routing.bad.length > 0) {
+      setError(`These dates can't be booked: ${routing.bad.map((b) => `${prettyDate(b.date)} (${b.reason})`).join(", ")}.`);
+      return;
+    }
+    const inputs: BookInput[] = [];
+    for (const s of services) {
+      const ds = routing.byService[s.id];
+      if (ds && ds.length > 0) inputs.push({ serviceId: s.id, dogIds, mode: "DATES", dates: ds });
+    }
+    runInputs(inputs);
+  }
+
   if (done) {
     return (
       <div className="card space-y-3 border-l-4 border-l-brand">
@@ -252,8 +236,8 @@ export function BookingForm({
         </p>
         <div className="flex gap-2">
           <Link href="/client/walks" className="btn-primary">View my walks</Link>
-          <button className="btn-outline" onClick={() => { setDone(null); setDates([]); setDogIds(dogs.length === 1 ? [dogs[0].id] : []); }}>
-            Book another
+          <button className="btn-outline" onClick={() => { setDone(null); setDates([]); setAgreeTerms(false); setExtraOpen(false); }}>
+            Book more
           </button>
         </div>
       </div>
@@ -262,32 +246,27 @@ export function BookingForm({
 
   const perWalkList = selectedServices.map((s) => formatMoney(s.pricePerDog * dogMult)).join(" + ");
 
-  // Price row content depends on mode + readiness.
-  let priceLabel = "Price per walk";
-  let priceValue = perWalkList;
-  let priceNote = `${formatMoney(selectedServices[0]?.pricePerDog ?? 0)} × ${dogMult} dog${dogMult > 1 ? "s" : ""} per walk`;
-  if (mode === "DATES" && dates.length > 0 && routing.bad.length === 0) {
-    priceLabel = `Total · ${routing.count} walk${routing.count !== 1 ? "s" : ""}`;
-    priceValue = formatMoney(datesTotal);
-    const datesPerWalk = routedServices.map((s) => formatMoney(s.pricePerDog * dogMult)).join(" + ");
-    priceNote = `${datesPerWalk || perWalkList} per walk × the dates you picked.`;
-  } else if (mode === "REPEAT" && ready) {
-    priceValue = formatMoney(repeatPlan.total);
-    if (endMode === "DATE") {
-      priceLabel = `Total · ${repeatPlan.count} walk${repeatPlan.count !== 1 ? "s" : ""}`;
-      priceNote = `${perWalkList} per walk × ${repeatPlan.count} scheduled date${repeatPlan.count !== 1 ? "s" : ""} (bank holidays skipped).`;
-    } else {
-      priceLabel = `Next 12 weeks · ${repeatPlan.count} walk${repeatPlan.count !== 1 ? "s" : ""}`;
-      priceNote = `${perWalkList} per walk — then it keeps repeating and you're charged as walks happen.`;
-    }
-  }
-
   return (
     <div className="space-y-6">
       {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 
-      {/* Services (multi-select) — only for repeat bookings; "Pick dates" uses the calendar */}
-      {mode === "REPEAT" && (
+      {/* Dogs (shared) */}
+      <section className="card space-y-3">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <Icon name="paw" className="h-5 w-5 text-brand" />
+          Which dog{dogs.length > 1 ? "s" : ""}?
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {dogs.map((d) => (
+            <label key={d.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand/10">
+              <input type="checkbox" checked={dogIds.includes(d.id)} onChange={() => toggleDog(d.id)} />
+              {d.name}
+            </label>
+          ))}
+        </div>
+      </section>
+
+      {/* Services (multi-select) */}
       <section className="card space-y-3">
         <div className="flex items-start gap-2">
           <Icon name="paw" className="mt-0.5 h-5 w-5 text-brand" />
@@ -318,45 +297,89 @@ export function BookingForm({
           })}
         </div>
       </section>
-      )}
 
-      {/* Dogs */}
-      <section className="card space-y-3">
-        <h2 className="flex items-center gap-2 text-lg font-bold">
-          <Icon name="paw" className="h-5 w-5 text-brand" />
-          Which dog{dogs.length > 1 ? "s" : ""}?
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {dogs.map((d) => (
-            <label key={d.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand/10">
-              <input type="checkbox" checked={dogIds.includes(d.id)} onChange={() => toggleDog(d.id)} />
-              {d.name}
-            </label>
-          ))}
-        </div>
-      </section>
-
-      {/* When */}
+      {/* Regular days (the main, ongoing booking) */}
       <section className="card space-y-4">
         <h2 className="flex items-center gap-2 text-lg font-bold">
           <Icon name="calendar" className="h-5 w-5 text-brand" />
-          When would you like {mode === "REPEAT" && selectedServices.length === 1 ? selectedServices[0].name : "your walks"}?
+          Please select your {dogs.length > 1 ? "dogs’" : "dog’s"} regular day(s)
         </h2>
-        <div className="grid grid-cols-2 gap-2">
-          {([["DATES", "Pick dates"], ["REPEAT", "Repeat weekly"]] as const).map(([m, label]) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${mode === m ? "border-brand bg-brand text-white" : "border-border bg-surface hover:bg-brand-soft"}`}
-            >
-              {label}
-            </button>
-          ))}
+
+        {selectedServices.map((s) => (
+          <div key={s.id}>
+            <label className="label">
+              {selectedServices.length > 1 ? <span className="text-brand-dark">{s.name}</span> : "Every week on"}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {s.days.map((d) => {
+                const on = (daysByService[s.id] ?? []).includes(d);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => toggleDay(s.id, d)}
+                    aria-pressed={on}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "bg-brand text-white shadow-sm" : "border border-border bg-surface text-foreground hover:bg-brand-soft"}`}
+                  >
+                    {DAY_SHORT[d]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        <div>
+          <label className="label">Start date</label>
+          <input type="date" min={todayIso} value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" />
+          <p className="mt-1 text-xs text-muted">Walks repeat every week with no end date. Bank holidays are skipped automatically.</p>
         </div>
 
-        {mode === "DATES" ? (
-          <div className="space-y-3">
+        {/* Terms & conditions */}
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border bg-background p-3">
+          <input type="checkbox" className="mt-0.5 h-4 w-4" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
+          <span className="text-sm">
+            I confirm I&apos;m happy for my dog{dogs.length > 1 ? "s" : ""} to attend each week, and I agree to give a
+            minimum of <strong>7 days&apos; notice</strong> to cancel a walk to avoid a charge.
+          </span>
+        </label>
+
+        <div className="flex items-center justify-between">
+          <span className="text-muted">
+            {regularReady ? `Next 12 weeks · ${repeatPlan.count} walk${repeatPlan.count !== 1 ? "s" : ""}` : "Price per walk"}
+          </span>
+          <span className="text-lg font-bold">
+            {regularReady ? formatMoney(repeatPlan.total) : perWalkList}
+          </span>
+        </div>
+        {regularReady && (
+          <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm font-medium text-brand-dark">
+            🐾 {joinNames(selectedServices.filter((s) => (daysByService[s.id]?.length ?? 0) > 0).map((s) => `${s.name} every ${joinDays(daysByService[s.id])}`))}, starting {repeatPlan.first ? prettyDate(repeatPlan.first) : "…"}, repeating with no end date.
+          </p>
+        )}
+        <button onClick={submitRegular} disabled={pending} className="btn-primary w-full">
+          {pending ? "Booking…" : "Set up regular walks"}
+        </button>
+      </section>
+
+      {/* Extra one-off days (collapsible) */}
+      <section className="card">
+        <button
+          type="button"
+          onClick={() => setExtraOpen((o) => !o)}
+          className="flex w-full items-center justify-between gap-2 text-left"
+          aria-expanded={extraOpen}
+        >
+          <span className="flex items-center gap-2 text-lg font-bold">
+            <Icon name="calendar" className="h-5 w-5 text-brand" />
+            Pick your extra day(s)
+          </span>
+          <Icon name="chevronRight" className={`h-5 w-5 text-muted transition ${extraOpen ? "rotate-90" : ""}`} />
+        </button>
+        <p className="mt-1 text-sm text-muted">Optional — add one-off extra dates on top of your regular walks.</p>
+
+        {extraOpen && (
+          <div className="mt-4 space-y-3">
             <label className="label">Tap the days you&apos;d like</label>
             <ServiceCalendar
               services={services}
@@ -391,77 +414,15 @@ export function BookingForm({
             <p className="text-xs text-muted">
               Each date is booked with the service that runs that weekday. Weekends and bank holidays aren&apos;t available.
             </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {selectedServices.map((s) => (
-              <div key={s.id}>
-                <label className="label">
-                  Repeat {selectedServices.length > 1 ? <span className="text-brand-dark">{s.name}</span> : ""} on
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {s.days.map((d) => {
-                    const on = (daysByService[s.id] ?? []).includes(d);
-                    return (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => toggleDay(s.id, d)}
-                        aria-pressed={on}
-                        className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "bg-brand text-white shadow-sm" : "border border-border bg-surface text-foreground hover:bg-brand-soft"}`}
-                      >
-                        {DAY_SHORT[d]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-
-            <div>
-              <label className="label">Start date</label>
-              <input type="date" min={todayIso} value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" />
+            <div className="flex items-center justify-between">
+              <span className="text-muted">{extraReady ? `Total · ${routing.count} extra walk${routing.count !== 1 ? "s" : ""}` : "Extra days"}</span>
+              <span className="text-lg font-bold">{extraReady ? formatMoney(datesTotal) : "—"}</span>
             </div>
-
-            <div>
-              <label className="label">Ends</label>
-              <div className="grid grid-cols-2 gap-2">
-                {([["DATE", "Until a date"], ["FOREVER", "Until I stop it"]] as const).map(([m, label]) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setEndMode(m)}
-                    className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${endMode === m ? "border-brand bg-brand text-white" : "border-border bg-surface hover:bg-brand-soft"}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {endMode === "DATE" ? (
-                <input type="date" min={startDate || todayIso} value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input mt-2" />
-              ) : (
-                <p className="mt-2 text-xs text-muted">We&apos;ll schedule the next 12 weeks now and keep it going.</p>
-              )}
-            </div>
-
-            <p className="text-xs text-muted">Any date that falls on a bank holiday is skipped automatically.</p>
+            <button onClick={submitExtra} disabled={pending || !extraReady} className="btn-primary w-full">
+              {pending ? "Booking…" : "Add extra day(s)"}
+            </button>
           </div>
         )}
-      </section>
-
-      {/* Summary + submit */}
-      <section className="card space-y-3">
-        <p className={`rounded-lg px-3 py-2.5 text-sm ${ready ? "bg-brand-soft font-medium text-brand-dark" : "bg-background text-muted"}`}>
-          {ready ? `🐾 You're booking: ${summary} Weekends and bank holidays are skipped automatically.` : summary}
-        </p>
-        <div className="flex items-center justify-between">
-          <span className="text-muted">{priceLabel}</span>
-          <span className="text-lg font-bold">{priceValue}</span>
-        </div>
-        <p className="text-xs text-muted">{priceNote}</p>
-        <button onClick={submit} disabled={pending} className="btn-primary w-full">
-          {pending ? "Booking…" : mode === "DATES" ? "Request these walks" : "Set up repeating walks"}
-        </button>
       </section>
     </div>
   );

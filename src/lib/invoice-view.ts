@@ -22,6 +22,7 @@ export async function loadInvoiceDoc(invoiceId: string, clientId?: string) {
               serviceName: true,
               date: true,
               numDogs: true,
+              lateCancelled: true,
               booking: { select: { dogIds: true } },
             },
           },

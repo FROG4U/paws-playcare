@@ -10,10 +10,11 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await requireAdmin();
-  const [unread, newBookings, newMessages] = await Promise.all([
+  const [unread, newBookings, newMessages, pendingCancels] = await Promise.all([
     unreadCount(user.id),
     prisma.booking.count({ where: { reviewedAt: null, status: "ACTIVE" } }),
     prisma.contactMessage.count({ where: { read: false } }),
+    prisma.changeRequest.count({ where: { type: "CANCELLATION", status: "PENDING" } }),
   ]);
 
   const items: NavItem[] = [
@@ -22,6 +23,7 @@ export default async function AdminLayout({
     { href: "/admin/calendar", label: "Calendar", icon: "calendar" },
     { href: "/admin/approvals", label: "Approvals", icon: "check" },
     { href: "/admin/bookings", label: "Bookings", icon: "clipboard" },
+    { href: "/admin/cancellations", label: "Cancellations", icon: "x", badge: pendingCancels },
     { href: "/admin/clients", label: "Clients", icon: "users" },
     { href: "/admin/workers", label: "Team", icon: "footprints" },
     { href: "/admin/services", label: "Services", icon: "paw" },

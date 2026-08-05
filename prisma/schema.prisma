@@ -228,6 +228,10 @@ model Booking {
   status  String  @default("ACTIVE")  // ACTIVE | ENDED | CANCELLED
   notes   String?
 
+  // The client ticked the weekly-commitment + 7-day-cancellation terms when
+  // setting up a regular (recurring) booking.
+  termsAcceptedAt DateTime?
+
   // Admin triage of the incoming request (New Bookings inbox).
   // reviewedAt null = still a new/pending request awaiting the admin.
   reviewedAt   DateTime?
@@ -269,7 +273,11 @@ model Walk {
   completedAt      DateTime?
   completedById    String?
   cancelledAt      DateTime?
+  cancelledById    String?
   cancelReason     String?
+  // A cancellation made with less than 7 days' notice: the walk is billed at
+  // full price anyway and flagged on the invoice + the client's account.
+  lateCancelled    Boolean   @default(false)
 
   // Pricing snapshot (pence) resolved at creation
   price         Int     @default(0)
@@ -291,11 +299,14 @@ model ChangeRequest {
   requestedById String
   requestedBy   User     @relation("RequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
 
-  type            String  // DATE_CHANGE | SHIFT_SWAP
+  type            String  // DATE_CHANGE | SHIFT_SWAP | CANCELLATION
   proposedDate    DateTime?
   proposedSlot    String?
   proposedWorkerId String?
   note            String?
+  // For CANCELLATION requests: true when made with < 7 days' notice, so the walk
+  // is still charged if approved.
+  feeApplies      Boolean @default(false)
   status          String  @default("PENDING") // PENDING | APPROVED | REJECTED
   resolvedById    String?
   resolvedAt      DateTime?

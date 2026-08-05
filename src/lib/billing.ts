@@ -63,11 +63,12 @@ export function periodLabel(cadence: string, p: BillingPeriod): string {
 }
 
 function invoiceLineFor(
-  walk: { serviceName: string | null; date: Date },
+  walk: { serviceName: string | null; date: Date; lateCancelled?: boolean },
   dogLabel: string
 ): string {
   const svc = walk.serviceName ?? "Walk";
-  return `${svc} · ${formatDate(walk.date)} · ${dogLabel}`;
+  const base = `${svc} · ${formatDate(walk.date)} · ${dogLabel}`;
+  return walk.lateCancelled ? `${base} · Late cancellation` : base;
 }
 
 // Full invoice-line description for a walk, resolving dog names. Reused both when
@@ -77,6 +78,7 @@ export async function invoiceLineForWalk(walk: {
   serviceName: string | null;
   date: Date;
   numDogs: number;
+  lateCancelled?: boolean;
   booking: { dogIds: string } | null;
 }): Promise<string> {
   return invoiceLineFor(walk, await dogLabelFor(walk));

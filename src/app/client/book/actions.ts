@@ -22,6 +22,7 @@ export type BookInput = {
   startDate?: string;               // REPEAT
   endMode?: "DATE" | "FOREVER";     // REPEAT
   endDate?: string;                 // REPEAT when endMode = DATE
+  agreeWeekly?: boolean;            // REPEAT — client ticked the weekly + 7-day terms
 };
 
 export type BookResult =
@@ -88,6 +89,7 @@ export async function createBooking(input: BookInput): Promise<BookResult> {
   const days = (input.days ?? []).filter((d) => svcDays.includes(d));
   if (days.length === 0) return { ok: false, error: "Please choose at least one day of the week." };
   if (!input.startDate) return { ok: false, error: "Please pick a start date." };
+  if (!input.agreeWeekly) return { ok: false, error: "Please tick the box to agree to the weekly terms." };
 
   const ongoing = input.endMode !== "DATE";
   let endStr: string;
@@ -111,6 +113,7 @@ export async function createBooking(input: BookInput): Promise<BookResult> {
       startDate: atUtcMidnight(input.startDate),
       endDate: ongoing ? null : atUtcMidnight(input.endDate!),
       daysOfWeek: JSON.stringify(days),
+      termsAcceptedAt: new Date(),
       walks: { create: dates.map(mkWalk) },
     },
   });

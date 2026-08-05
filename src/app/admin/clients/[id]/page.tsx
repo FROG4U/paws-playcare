@@ -28,6 +28,7 @@ export default async function ClientDetailPage({
   });
   if (!client || client.role !== ROLES.CLIENT) notFound();
 
+  const lateCancels = await prisma.walk.count({ where: { clientId: id, lateCancelled: true } });
   const archived = !!client.archivedAt;
   const hasCard = !!client.paymentMethodId;
   let regSlots: string[] = [];
@@ -53,6 +54,11 @@ export default async function ClientDetailPage({
                 {client.status.toLowerCase()}
               </span>
               {archived && <span className="badge bg-border text-muted">archived</span>}
+              {lateCancels > 0 && (
+                <span className="badge bg-danger/10 text-danger">
+                  {lateCancels} late cancellation{lateCancels > 1 ? "s" : ""}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -87,6 +93,9 @@ export default async function ClientDetailPage({
           label="Card on file"
           value={hasCard ? `${client.cardBrand ?? "Card"} ···· ${client.cardLast4} · exp ${String(client.cardExpMonth).padStart(2, "0")}/${String(client.cardExpYear).slice(-2)}` : "No card"}
         />
+        {lateCancels > 0 && (
+          <Field label="Late cancellations" value={`${lateCancels} — charged in full (within-7-day notice)`} />
+        )}
         <PasswordReset clientId={client.id} />
       </Section>
 
