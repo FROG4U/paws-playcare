@@ -147,6 +147,16 @@ export function BookingForm({
     return { total, count, first };
   }, [selectedServices, daysByService, startDate, dogMult, bhSet]);
 
+  // Walks per week + weekly cost, based on the regular days actually selected.
+  const weeklyCount = useMemo(
+    () => selectedServices.reduce((n, s) => n + (daysByService[s.id]?.length ?? 0), 0),
+    [selectedServices, daysByService]
+  );
+  const weeklyTotal = useMemo(
+    () => selectedServices.reduce((t, s) => t + s.pricePerDog * dogMult * (daysByService[s.id]?.length ?? 0), 0),
+    [selectedServices, daysByService, dogMult]
+  );
+
   const regularHasDays = selectedServices.some((s) => (daysByService[s.id]?.length ?? 0) > 0);
   const regularReady = regularHasDays && !!startDate && agreeTerms && numDogs > 0 && repeatPlan.count > 0;
   const extraReady = dates.length > 0 && routing.bad.length === 0 && numDogs > 0;
@@ -244,8 +254,6 @@ export function BookingForm({
     );
   }
 
-  const perWalkList = selectedServices.map((s) => formatMoney(s.pricePerDog * dogMult)).join(" + ");
-
   return (
     <div className="space-y-6">
       {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
@@ -305,29 +313,34 @@ export function BookingForm({
           Please select your {dogs.length > 1 ? "dogs’" : "dog’s"} regular day(s)
         </h2>
 
-        {selectedServices.map((s) => (
-          <div key={s.id}>
-            <label className="label">
-              {selectedServices.length > 1 ? <span className="text-brand-dark">{s.name}</span> : "Every week on"}
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {s.days.map((d) => {
-                const on = (daysByService[s.id] ?? []).includes(d);
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => toggleDay(s.id, d)}
-                    aria-pressed={on}
-                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "bg-brand text-white shadow-sm" : "border border-border bg-surface text-foreground hover:bg-brand-soft"}`}
-                  >
-                    {DAY_SHORT[d]}
-                  </button>
-                );
-              })}
+        {selectedServices.map((s) => {
+          const svcIdx = services.findIndex((x) => x.id === s.id);
+          const pal = SERVICE_PALETTE[svcIdx % SERVICE_PALETTE.length];
+          return (
+            <div key={s.id}>
+              <label className="label">
+                <span style={{ color: pal.softText }}>{s.name}</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {s.days.map((d) => {
+                  const on = (daysByService[s.id] ?? []).includes(d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => toggleDay(s.id, d)}
+                      aria-pressed={on}
+                      className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "text-white shadow-sm" : "border border-border bg-surface text-foreground hover:opacity-80"}`}
+                      style={on ? { backgroundColor: pal.solid } : { color: pal.softText, borderColor: pal.solid }}
+                    >
+                      {DAY_SHORT[d]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         <div>
           <label className="label">Start date</label>
@@ -346,12 +359,20 @@ export function BookingForm({
 
         <div className="flex items-center justify-between">
           <span className="text-muted">
-            {regularReady ? `Next 12 weeks · ${repeatPlan.count} walk${repeatPlan.count !== 1 ? "s" : ""}` : "Price per walk"}
+            {regularReady
+              ? `Next 12 weeks · ${repeatPlan.count} walk${repeatPlan.count !== 1 ? "s" : ""}`
+              : weeklyCount > 0
+                ? `Per week · ${weeklyCount} walk${weeklyCount !== 1 ? "s" : ""}`
+                : "Per walk"}
           </span>
           <span className="text-lg font-bold">
-            {regularReady ? formatMoney(repeatPlan.total) : perWalkList}
+            {regularReady ? formatMoney(repeatPlan.total) : weeklyCount > 0 ? formatMoney(weeklyTotal) : formatMoney(selectedServices[0]?.pricePerDog * dogMult)}
           </span>
         </div>
+        <p className="text-xs text-muted">
+          {formatMoney(selectedServices[0]?.pricePerDog ?? 0)} per dog, per walk{numDogs > 1 ? ` · ${numDogs} dogs` : ""}.
+          {weeklyCount > 0 ? ` You've chosen ${weeklyCount} walk${weeklyCount !== 1 ? "s" : ""} a week.` : ""}
+        </p>
         {regularReady && (
           <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm font-medium text-brand-dark">
             🐾 {joinNames(selectedServices.filter((s) => (daysByService[s.id]?.length ?? 0) > 0).map((s) => `${s.name} every ${joinDays(daysByService[s.id])}`))}, starting {repeatPlan.first ? prettyDate(repeatPlan.first) : "…"}, repeating with no end date.
