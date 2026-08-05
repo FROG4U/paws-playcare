@@ -52,6 +52,48 @@ async function main() {
     },
   });
 
+  // Demo CLIENT account — for exploring the client side of the app. Approved &
+  // active so it can sign in and click around. The password is (re)set on every
+  // seed so it is always known: demo1234
+  const demoHash = await bcrypt.hash("demo1234", 10);
+  const demo = await prisma.user.upsert({
+    where: { email: "demo.client@example.com" },
+    update: { passwordHash: demoHash, role: "CLIENT", status: "ACTIVE" },
+    create: {
+      email: "demo.client@example.com",
+      passwordHash: demoHash,
+      role: "CLIENT",
+      name: "Demo Client",
+      phone: "07700 900000",
+      status: "ACTIVE",
+      approvedAt: new Date(),
+      agreedTermsAt: new Date(),
+      payCadence: "WEEKLY",
+      address: "1 Demo Street, Watford",
+      emergencyName: "Demo Contact",
+      emergencyPhone: "07700 900111",
+    },
+  });
+
+  // Give the demo client a dog to make the account feel real (only if none yet).
+  const demoDogs = await prisma.dog.count({ where: { ownerId: demo.id } });
+  if (demoDogs === 0) {
+    await prisma.dog.create({
+      data: {
+        ownerId: demo.id,
+        name: "Buddy",
+        breed: "Labrador",
+        age: "3 years",
+        neutered: true,
+        healthDetails: "Fit and healthy, no medication.",
+        vaccinationsCurrent: true,
+        kennelCoughCurrent: true,
+        microchipped: true,
+        insured: true,
+      },
+    });
+  }
+
   // Site content: the Prices page is now the "Services" page (sits in the
   // Services nav slot), and the old standalone Services page is removed.
   // No-ops if the pages haven't been seeded yet.
@@ -62,7 +104,7 @@ async function main() {
   await prisma.page.deleteMany({ where: { slug: "our-services" } });
 
   console.log(
-    "Seeded admin + applied contact details and Services/Prices merge"
+    "Seeded admin + Kitty + demo client (demo.client@example.com / demo1234) and applied content"
   );
 }
 
