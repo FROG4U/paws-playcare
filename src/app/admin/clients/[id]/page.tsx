@@ -5,6 +5,7 @@ import { ROLES, USER_STATUS, BOOKING_SLOT_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
 import { Icon } from "@/components/Icon";
 import { ClientActions } from "./ClientActions";
+import { PasswordReset } from "./PasswordReset";
 
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: "bg-success/15 text-success",
@@ -86,6 +87,7 @@ export default async function ClientDetailPage({
           label="Card on file"
           value={hasCard ? `${client.cardBrand ?? "Card"} ···· ${client.cardLast4} · exp ${String(client.cardExpMonth).padStart(2, "0")}/${String(client.cardExpYear).slice(-2)}` : "No card"}
         />
+        <PasswordReset clientId={client.id} />
       </Section>
 
       {/* Profile */}

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireRole, hashPassword } from "@/lib/auth";
 import { ROLES, PAY_CADENCE } from "@/lib/constants";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -109,6 +109,24 @@ export async function saveDog(_prev: Result | null, formData: FormData): Promise
   });
 
   if (clientId) refresh(clientId);
+  return { ok: true };
+}
+
+// Set / reset a client's login password (admin only). Returns the password so
+// the admin can pass it to the client. Used for demo accounts and when a client
+// is locked out — no server seed step needed.
+export async function resetClientPassword(clientId: string, newPassword: string): Promise<Result> {
+  await requireRole([ROLES.ADMIN]);
+  if (!clientId) return { ok: false, error: "Missing client id." };
+  const pw = (newPassword ?? "").trim();
+  if (pw.length < 8) return { ok: false, error: "Password must be at least 8 characters." };
+
+  const client = await prisma.user.findUnique({ where: { id: clientId }, select: { role: true } });
+  if (!client) return { ok: false, error: "Client not found." };
+  if (client.role !== ROLES.CLIENT) return { ok: false, error: "Only client accounts can be reset here." };
+
+  await prisma.user.update({ where: { id: clientId }, data: { passwordHash: await hashPassword(pw) } });
+  refresh(clientId);
   return { ok: true };
 }
 
