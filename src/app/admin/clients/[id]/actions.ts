@@ -130,6 +130,17 @@ export async function resetClientPassword(clientId: string, newPassword: string)
   return { ok: true };
 }
 
+// Change a client's billing cycle (clients can't do this themselves).
+export async function setClientCadence(clientId: string, cadence: string): Promise<Result> {
+  await requireRole([ROLES.ADMIN]);
+  if (!(Object.values(PAY_CADENCE) as string[]).includes(cadence)) {
+    return { ok: false, error: "Invalid billing cycle." };
+  }
+  await prisma.user.update({ where: { id: clientId }, data: { payCadence: cadence } });
+  refresh(clientId);
+  return { ok: true };
+}
+
 // Archive / unarchive — reversible soft-hide from the active client list.
 export async function archiveClient(id: string): Promise<Result> {
   await requireRole([ROLES.ADMIN]);

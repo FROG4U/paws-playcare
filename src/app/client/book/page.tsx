@@ -23,7 +23,7 @@ export default async function BookPage() {
   }
 
   const [dogs, services, bhKeys] = await Promise.all([
-    prisma.dog.findMany({ where: { ownerId: user.id }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } }),
+    prisma.dog.findMany({ where: { ownerId: user.id, archivedAt: null }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } }),
     getServices(),
     bankHolidayKeys(),
   ]);
@@ -48,9 +48,9 @@ export default async function BookPage() {
         <EmptyState
           icon="paw"
           title="No dogs on your account"
-          action={<Link href="/client" className="btn-outline">Go to your account</Link>}
+          action={<Link href="/client/profile" className="btn-outline">Go to my profile</Link>}
         >
-          Add a dog to your account first, then you can book walks.
+          Add a dog on your profile first, then you can book walks.
         </EmptyState>
       ) : serviceOptions.length === 0 ? (
         <EmptyState icon="clock" title="No services available">

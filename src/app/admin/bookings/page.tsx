@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, dayKey } from "@/lib/dates";
@@ -69,7 +70,14 @@ export default async function BookingsPage() {
                   price={w.price}
                   worker={w.worker?.name ?? null}
                 />
-                <CompleteButton walkId={w.id} />
+                <div className="flex items-center gap-3">
+                  {w.bookingId && (
+                    <Link href={`/admin/bookings/${w.bookingId}`} className="text-sm font-semibold text-brand hover:underline">
+                      Edit
+                    </Link>
+                  )}
+                  <CompleteButton walkId={w.id} />
+                </div>
               </div>
             ))}
           </div>
@@ -116,9 +124,16 @@ export default async function BookingsPage() {
                   price={w.price}
                   worker={w.worker?.name ?? null}
                 />
-                <span className="badge bg-brand-soft text-brand-dark">
-                  {WALK_STATUS_LABELS[w.status] ?? w.status}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="badge bg-brand-soft text-brand-dark">
+                    {WALK_STATUS_LABELS[w.status] ?? w.status}
+                  </span>
+                  {w.bookingId && (
+                    <Link href={`/admin/bookings/${w.bookingId}`} className="text-sm font-semibold text-brand hover:underline">
+                      Edit
+                    </Link>
+                  )}
+                </div>
               </div>
             ))}
           </div>

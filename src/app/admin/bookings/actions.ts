@@ -42,6 +42,19 @@ export async function completeWalk(walkId: string): Promise<Result> {
     },
   });
 
+  if (walk.noCharge) {
+    // Completed as a courtesy — not billed.
+    await notify({
+      userId: walk.client.id,
+      type: NOTIF_TYPE.WALK_COMPLETED,
+      title: "Walk completed 🐾",
+      body: `${walk.serviceName ?? "Your walk"} on ${formatDate(walk.date)} is done — no charge this time.`,
+      link: "/client/walks",
+    });
+    refresh();
+    return { ok: true };
+  }
+
   await addCompletedWalkToInvoice(walkId);
 
   const due = nextPaymentDate(walk.client.payCadence, walk.date);

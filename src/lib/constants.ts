@@ -26,6 +26,13 @@ export const BOOKING_TYPE = {
   RECURRING: "RECURRING",
 } as const;
 
+export const BOOKING_STATUS = {
+  ACTIVE: "ACTIVE",
+  PAUSED: "PAUSED",   // admin paused this booking — future walks cancelled, resumable
+  ENDED: "ENDED",
+  CANCELLED: "CANCELLED",
+} as const;
+
 export const TIME_SLOTS = ["AM", "LUNCH", "PM"] as const;
 export type TimeSlot = (typeof TIME_SLOTS)[number];
 

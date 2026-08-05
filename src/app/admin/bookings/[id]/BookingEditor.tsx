@@ -9,6 +9,9 @@ import {
   addWalk,
   removeWalk,
   setBookingDecision,
+  setWalkNoCharge,
+  pauseBooking,
+  resumeBooking,
   type EditResult,
 } from "./actions";
 
@@ -20,6 +23,7 @@ export type WalkLite = {
   statusLabel: string;
   editable: boolean;
   price: number;
+  noCharge: boolean;
 };
 export type DogLite = { id: string; name: string };
 
@@ -31,6 +35,7 @@ export function BookingEditor({
   decision,
   isPending,
   pricePerDog,
+  paused,
 }: {
   bookingId: string;
   dogs: DogLite[];
@@ -39,6 +44,7 @@ export function BookingEditor({
   decision: string | null;
   isPending: boolean;
   pricePerDog: number | null;
+  paused: boolean;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +123,27 @@ export function BookingEditor({
         </div>
       </section>
 
+      {/* Pause / resume */}
+      <section className="card space-y-3">
+        <h2 className="text-base font-bold">Pause</h2>
+        <p className="text-sm text-muted">
+          {paused
+            ? "This booking is paused — its upcoming walks are cancelled and won't be charged."
+            : "Pause this booking to stop upcoming walks (cancelled with no charge). You can resume it any time."}
+        </p>
+        {paused ? (
+          <button className="btn-primary" disabled={pending} onClick={() => run(() => resumeBooking(bookingId))}>
+            <Icon name="check" className="h-4 w-4" />
+            Resume booking
+          </button>
+        ) : (
+          <button className="btn-outline" disabled={pending} onClick={() => run(() => pauseBooking(bookingId))}>
+            <Icon name="clock" className="h-4 w-4" />
+            Pause booking
+          </button>
+        )}
+      </section>
+
       {/* Dogs */}
       <section className="card space-y-3">
         <h2 className="text-base font-bold">Dogs on this booking</h2>
@@ -180,7 +207,17 @@ export function BookingEditor({
                   <span className="w-28 text-sm">{w.label}</span>
                 )}
                 <span className="badge bg-mist text-muted">{w.statusLabel}</span>
-                <span className="text-sm text-muted">{formatMoney(w.price)}</span>
+                <span className={`text-sm ${w.noCharge ? "text-muted line-through" : "text-muted"}`}>{formatMoney(w.price)}</span>
+                {w.noCharge && <span className="badge bg-success/15 text-success">No charge</span>}
+                {w.status !== "CANCELLED" && (
+                  <button
+                    className="text-sm font-semibold text-brand hover:underline"
+                    disabled={pending}
+                    onClick={() => run(() => setWalkNoCharge(w.id, !w.noCharge))}
+                  >
+                    {w.noCharge ? "Charge" : "No charge"}
+                  </button>
+                )}
                 {w.status !== "COMPLETED" && w.status !== "CANCELLED" && (
                   <button
                     className="text-sm font-semibold text-danger"

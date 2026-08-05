@@ -3,11 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
-import { ROLES, NOTIF_TYPE, WALK_STATUS } from "@/lib/constants";
+import { ROLES, NOTIF_TYPE, WALK_STATUS, BOOKING_STATUS, BOOKING_TYPE } from "@/lib/constants";
 import { notify } from "@/lib/notifications";
-import { atUtcMidnight, formatDate } from "@/lib/dates";
-import { getServices, serviceDays, servicePrice } from "@/lib/services";
-import { bankHolidayKeys, checkBookable } from "@/lib/availability";
+import { atUtcMidnight, formatDate, dayKey } from "@/lib/dates";
+import { getServices, serviceForName, serviceDays, servicePrice } from "@/lib/services";
+import { bankHolidayKeys, checkBookable, expandRecurring } from "@/lib/availability";
+import { addCompletedWalkToInvoice } from "@/lib/billing";
+
+// How far ahead resuming a paused recurring booking regenerates walks.
+const ONGOING_HORIZON_DAYS = 12 * 7;
 
 export type EditResult = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -245,4 +249,131 @@ export async function setBookingDecision(
 
   refresh(bookingId);
   return { ok: true };
+}
+
+// Remove a walk's line from its invoice, if that invoice is still open/unissued.
+// Deletes the invoice entirely if it becomes empty. (Mirrors undoComplete.)
+async function stripWalkFromInvoice(walkId: string) {
+  const item = await prisma.invoiceItem.findUnique({
+    where: { walkId },
+    include: { invoice: true },
+  });
+  if (!item) return;
+  if (item.invoice.status !== "OPEN" || item.invoice.dueAt) return; // already issued — leave it
+  await prisma.$transaction(async (tx) => {
+    await tx.invoiceItem.delete({ where: { id: item.id } });
+    const agg = await tx.invoiceItem.aggregate({ where: { invoiceId: item.invoiceId }, _sum: { amount: true } });
+    const remaining = agg._sum.amount ?? 0;
+    if (remaining === 0) await tx.invoice.delete({ where: { id: item.invoiceId } });
+    else await tx.invoice.update({ where: { id: item.invoiceId }, data: { subtotal: remaining, total: remaining } });
+  });
+}
+
+// Toggle "no charge" on a single walk. Turning it on also pulls the walk off its
+// invoice if it was already billed (and the invoice isn't issued yet).
+export async function setWalkNoCharge(walkId: string, noCharge: boolean): Promise<EditResult> {
+  await requireRole([ROLES.ADMIN]);
+  const walk = await prisma.walk.findUnique({ where: { id: walkId } });
+  if (!walk) return { ok: false, error: "Walk not found." };
+
+  await prisma.walk.update({ where: { id: walkId }, data: { noCharge } });
+  if (noCharge) {
+    await stripWalkFromInvoice(walkId);
+  } else if (walk.status === WALK_STATUS.COMPLETED) {
+    // Re-charge a completed walk that was previously marked no-charge.
+    await addCompletedWalkToInvoice(walkId);
+  }
+  if (walk.bookingId) refresh(walk.bookingId);
+  return { ok: true, message: noCharge ? "Walk marked — no charge." : "Walk will be charged." };
+}
+
+// Pause a booking: its upcoming (not-yet-done) walks are cancelled with no
+// charge, and the booking is marked paused so it can be resumed later.
+export async function pauseBooking(bookingId: string): Promise<EditResult> {
+  await requireRole([ROLES.ADMIN]);
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  if (!booking) return { ok: false, error: "Booking not found." };
+
+  const todayStart = new Date(dayKey(new Date()) + "T00:00:00.000Z");
+  await prisma.$transaction([
+    prisma.booking.update({ where: { id: bookingId }, data: { status: BOOKING_STATUS.PAUSED } }),
+    prisma.walk.updateMany({
+      where: {
+        bookingId,
+        date: { gte: todayStart },
+        status: { notIn: [WALK_STATUS.COMPLETED, WALK_STATUS.CANCELLED] },
+      },
+      data: { status: WALK_STATUS.CANCELLED, cancelledAt: new Date(), cancelReason: "Booking paused", noCharge: true },
+    }),
+  ]);
+
+  await notify({
+    userId: booking.clientId,
+    type: NOTIF_TYPE.BOOKING_UPDATED,
+    title: "Your booking is paused",
+    body: `Your ${booking.serviceName ?? "walk"} booking is paused — upcoming walks are cancelled with no charge. We'll resume when you're ready.`,
+    link: "/client/walks",
+  });
+  refresh(bookingId);
+  return { ok: true, message: "Booking paused — upcoming walks cancelled (no charge)." };
+}
+
+// Resume a paused booking. For a recurring booking, regenerate the next 12 weeks
+// from its weekday pattern (skipping dates that already have an active walk).
+export async function resumeBooking(bookingId: string): Promise<EditResult> {
+  await requireRole([ROLES.ADMIN]);
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { walks: { select: { date: true, status: true } } },
+  });
+  if (!booking) return { ok: false, error: "Booking not found." };
+
+  await prisma.booking.update({ where: { id: bookingId }, data: { status: BOOKING_STATUS.ACTIVE } });
+
+  let created = 0;
+  if (booking.type === BOOKING_TYPE.RECURRING) {
+    let days: number[] = [];
+    try { const p = JSON.parse(booking.daysOfWeek); if (Array.isArray(p)) days = p; } catch {}
+    const services = await getServices();
+    const service = serviceForName(services, booking.serviceId, booking.serviceName);
+    if (days.length && service) {
+      const svcDays = serviceDays(service);
+      const useDays = days.filter((d) => svcDays.includes(d));
+      const bhKeys = await bankHolidayKeys();
+      const startIso = dayKey(new Date());
+      const endIso = dayKey(new Date(Date.now() + ONGOING_HORIZON_DAYS * 86400000));
+      const { dates } = expandRecurring(useDays, startIso, endIso, bhKeys);
+      // Skip any date that already has a non-cancelled walk.
+      const activeKeys = new Set(
+        booking.walks.filter((w) => w.status !== WALK_STATUS.CANCELLED).map((w) => dayKey(w.date))
+      );
+      const price = servicePrice(service, booking.numDogs);
+      const toCreate = dates.filter((d) => !activeKeys.has(dayKey(d)));
+      if (toCreate.length) {
+        await prisma.walk.createMany({
+          data: toCreate.map((d) => ({
+            bookingId,
+            clientId: booking.clientId,
+            date: d,
+            timeSlot: booking.timeSlot,
+            serviceName: booking.serviceName,
+            numDogs: booking.numDogs,
+            price,
+            status: WALK_STATUS.REQUESTED,
+          })),
+        });
+        created = toCreate.length;
+      }
+    }
+  }
+
+  await notify({
+    userId: booking.clientId,
+    type: NOTIF_TYPE.BOOKING_UPDATED,
+    title: "Your booking has resumed 🎉",
+    body: `Your ${booking.serviceName ?? "walk"} booking is active again${created ? ` — ${created} upcoming walk${created > 1 ? "s" : ""} scheduled` : ""}.`,
+    link: "/client/walks",
+  });
+  refresh(bookingId);
+  return { ok: true, message: `Booking resumed${created ? ` — ${created} walk${created > 1 ? "s" : ""} scheduled` : ""}.` };
 }

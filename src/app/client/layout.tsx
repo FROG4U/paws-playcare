@@ -9,6 +9,7 @@ const items: NavItem[] = [
   { href: "/client/walks", label: "My walks", icon: "paw" },
   { href: "/client/invoices", label: "Invoices", icon: "receipt" },
   { href: "/client/payment", label: "Payment", icon: "card" },
+  { href: "/client/profile", label: "Profile", icon: "user" },
 ];
 
 export default async function ClientLayout({

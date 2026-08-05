@@ -56,8 +56,10 @@ export default async function BookingEditPage({ params }: { params: Promise<{ id
     statusLabel: WALK_STATUS_LABELS[w.status] ?? w.status,
     editable: EDITABLE.includes(w.status),
     price: w.price,
+    noCharge: w.noCharge,
   }));
 
+  const paused = booking.status === "PAUSED";
   const isPending = booking.reviewedAt == null && booking.status === "ACTIVE";
 
   return (
@@ -103,6 +105,7 @@ export default async function BookingEditPage({ params }: { params: Promise<{ id
         decision={booking.decision}
         isPending={isPending}
         pricePerDog={service ? service.pricePerDog : null}
+        paused={paused}
       />
     </div>
   );

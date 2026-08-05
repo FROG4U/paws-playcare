@@ -85,6 +85,15 @@ export default async function ClientHome() {
             </p>
           </div>
         </Link>
+        <Link href="/client/profile" className="card flex items-center gap-3 transition hover:border-brand/30 hover:shadow-md">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-soft text-brand">
+            <Icon name="user" className="h-[1.3rem] w-[1.3rem]" />
+          </span>
+          <div>
+            <p className="font-bold">My profile</p>
+            <p className="text-sm text-muted">Details &amp; dogs</p>
+          </div>
+        </Link>
       </div>
 
       <div className="card">

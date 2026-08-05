@@ -37,6 +37,20 @@ export function formatDate(d: Date | string): string {
   } ${date.getUTCFullYear()}`;
 }
 
+// Date + clock time in UK local time — used for the T&C agreement timestamp.
+export function formatDateTime(d: Date | string): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  return date.toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/London",
+  });
+}
+
 // ISO weekday: Monday = 1 ... Sunday = 7
 export function isoWeekday(d: Date | string): number {
   const date = typeof d === "string" ? new Date(d) : d;

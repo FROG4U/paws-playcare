@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ROLES, USER_STATUS, BOOKING_SLOT_LABELS } from "@/lib/constants";
-import { formatDate } from "@/lib/dates";
+import { formatDate, formatDateTime } from "@/lib/dates";
 import { Icon } from "@/components/Icon";
 import { ClientActions } from "./ClientActions";
 import { PasswordReset } from "./PasswordReset";
+import { CadenceSelect } from "./CadenceSelect";
 
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: "bg-success/15 text-success",
@@ -96,6 +97,10 @@ export default async function ClientDetailPage({
         {lateCancels > 0 && (
           <Field label="Late cancellations" value={`${lateCancels} — charged in full (within-7-day notice)`} />
         )}
+        <div className="py-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted/70">Billing cycle</p>
+          <div className="mt-1"><CadenceSelect clientId={client.id} current={client.payCadence} /></div>
+        </div>
         <PasswordReset clientId={client.id} />
       </Section>
 
@@ -114,7 +119,7 @@ export default async function ClientDetailPage({
           label="Requested slots"
           value={regSlots.length ? regSlots.map((s) => BOOKING_SLOT_LABELS[s] ?? s).join(", ") : null}
         />
-        <Field label="Agreed to terms" value={client.agreedTermsAt ? formatDate(client.agreedTermsAt) : "Not recorded"} />
+        <Field label="Agreed to terms" value={client.agreedTermsAt ? formatDateTime(client.agreedTermsAt) : "Not recorded"} />
       </Section>
 
       {/* Dogs */}
