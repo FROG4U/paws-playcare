@@ -23,7 +23,13 @@ export default async function ClientInvoiceView({
           <Icon name="chevronRight" className="h-4 w-4 rotate-180" />
           My invoices
         </Link>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          <a href={`/client/invoices/${id}/pdf`} className="btn-primary text-sm" download>
+            <Icon name="receipt" className="h-4 w-4" />
+            Download PDF
+          </a>
+          <PrintButton />
+        </div>
       </div>
 
       <InvoiceDocument invoice={data.invoice} client={data.client} business={data.business} />

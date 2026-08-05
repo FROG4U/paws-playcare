@@ -278,6 +278,9 @@ model Walk {
   // A cancellation made with less than 7 days' notice: the walk is billed at
   // full price anyway and flagged on the invoice + the client's account.
   lateCancelled    Boolean   @default(false)
+  // A one-off "extra day" booked on top of the regular schedule (flagged on the
+  // invoice so it's clear it wasn't part of the weekly plan).
+  isExtra          Boolean   @default(false)
 
   // Pricing snapshot (pence) resolved at creation
   price         Int     @default(0)

@@ -48,9 +48,9 @@ export async function createBooking(input: BookInput): Promise<BookResult> {
   const numDogs = owned.length;
   const price = servicePrice(service, numDogs);
   const bhKeys = await bankHolidayKeys();
-  const mkWalk = (d: Date) => ({
+  const mkWalk = (d: Date, isExtra = false) => ({
     clientId: user.id, date: d, timeSlot: service.timeSlot, serviceName: service.name,
-    numDogs, price, isBankHoliday: false, status: "REQUESTED",
+    numDogs, price, isBankHoliday: false, status: "REQUESTED", isExtra,
   });
 
   // ── Specific dates ─────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export async function createBooking(input: BookInput): Promise<BookResult> {
         type: "ONE_OFF", timeSlot: service.timeSlot,
         dogIds: JSON.stringify(dogIds), numDogs,
         startDate: walkDates[0], daysOfWeek: "[]",
-        walks: { create: walkDates.map(mkWalk) },
+        walks: { create: walkDates.map((d) => mkWalk(d, true)) },
       },
     });
     await notifyAdmins({
@@ -114,7 +114,7 @@ export async function createBooking(input: BookInput): Promise<BookResult> {
       endDate: ongoing ? null : atUtcMidnight(input.endDate!),
       daysOfWeek: JSON.stringify(days),
       termsAcceptedAt: new Date(),
-      walks: { create: dates.map(mkWalk) },
+      walks: { create: dates.map((d) => mkWalk(d)) },
     },
   });
 
