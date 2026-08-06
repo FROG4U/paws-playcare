@@ -34,6 +34,19 @@ export async function sendApprovalEmail(to: string, name: string) {
   return sendEmail({ to, subject: "You're approved — welcome to Paws Playcare 🎉", html });
 }
 
+// Reminder chasing an active client who still has no payment card on file.
+export async function sendCardReminderEmail(to: string, name: string) {
+  const first = name.split(" ")[0] || "there";
+  const html = emailShell(
+    "Add your payment details 🐾",
+    p(`Hi ${first},`) +
+      p("You're all set up with Paws Playcare — the last step is adding a payment card so we can secure your bookings.") +
+      p("<strong>Without a card on file your bookings may be cancelled.</strong> It only takes a minute:") +
+      p(btn(`${baseUrl()}/client/payment`, "Add my card"))
+  );
+  return sendEmail({ to, subject: "Action needed: add your payment details", html });
+}
+
 // Sent for a "forgot password" request (contains the single-use reset link).
 export async function sendPasswordResetEmail(to: string, rawToken: string) {
   const link = `${baseUrl()}/reset-password?token=${rawToken}`;

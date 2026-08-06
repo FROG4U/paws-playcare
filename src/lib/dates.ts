@@ -51,6 +51,24 @@ export function formatDateTime(d: Date | string): string {
   });
 }
 
+// Compact "when" for message-style lists: time if today, "Yesterday", weekday
+// within the last week, else a short date.
+export function formatWhen(d: Date | string): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  const now = new Date();
+  const dayMs = 86400000;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const t = date.getTime();
+  if (t >= startOfToday) {
+    return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+  }
+  if (t >= startOfToday - dayMs) return "Yesterday";
+  if (t >= startOfToday - 6 * dayMs) {
+    return date.toLocaleDateString("en-GB", { weekday: "short", timeZone: "Europe/London" });
+  }
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
+}
+
 // ISO weekday: Monday = 1 ... Sunday = 7
 export function isoWeekday(d: Date | string): number {
   const date = typeof d === "string" ? new Date(d) : d;

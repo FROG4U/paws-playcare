@@ -1,5 +1,5 @@
 import { cronAuthorized } from "@/lib/cron-auth";
-import { warnExpiringCards, blockOverdueClients } from "@/lib/billing-run";
+import { warnExpiringCards, blockOverdueClients, remindClientsWithoutCard } from "@/lib/billing-run";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +11,9 @@ async function run(req: Request) {
   }
   const now = new Date();
   const cards = await warnExpiringCards(now);
+  const noCard = await remindClientsWithoutCard(now);
   const blocks = await blockOverdueClients(now);
-  return Response.json({ ok: true, ...cards, ...blocks });
+  return Response.json({ ok: true, ...cards, ...noCard, ...blocks });
 }
 
 export const GET = run;

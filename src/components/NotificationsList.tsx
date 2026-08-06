@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { formatDate } from "@/lib/dates";
+import { formatWhen } from "@/lib/dates";
 import { NOTIF_TYPE } from "@/lib/constants";
 import { PageHeader, EmptyState } from "./ui";
 import { Icon } from "./Icon";
@@ -30,9 +30,11 @@ const ICON: Record<string, { icon: string; tone: string }> = {
 export async function NotificationsList({
   userId,
   basePath,
+  title = "Notifications",
 }: {
   userId: string;
   basePath: string;
+  title?: string;
 }) {
   const notifs = await prisma.notification.findMany({
     where: { userId },
@@ -45,34 +47,36 @@ export async function NotificationsList({
   return (
     <div className="space-y-4">
       <AutoMarkRead path={basePath} hasUnread={hasUnread} />
-      <PageHeader icon="bell" title="Notifications" />
+      <PageHeader icon="mail" title={title} />
 
       {notifs.length === 0 ? (
-        <EmptyState icon="bell" title="Nothing new">
-          You&apos;re all caught up — notifications will appear here.
+        <EmptyState icon="mail" title="No messages yet">
+          You&apos;re all caught up — messages from Paws Playcare will appear here.
         </EmptyState>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
           {notifs.map((n) => {
-            const meta = ICON[n.type] ?? { icon: "bell", tone: "bg-brand-soft text-brand" };
-            const body = (
-              <div className={`card flex items-start gap-3 ${n.read ? "" : "ring-2 ring-brand/30"}`}>
-                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${meta.tone}`}>
+            const meta = ICON[n.type] ?? { icon: "paw", tone: "bg-brand-soft text-brand" };
+            const row = (
+              <div className={`flex items-start gap-3 px-3.5 py-3 transition ${n.read ? "" : "bg-brand-soft/40"} ${n.link ? "hover:bg-brand-soft/60" : ""}`}>
+                <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${meta.tone}`}>
                   <Icon name={meta.icon} className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">
-                    {n.title}
-                    {!n.read && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-brand align-middle" />}
-                  </p>
-                  {n.body && <p className="text-sm text-muted">{n.body}</p>}
-                  <p className="mt-1 text-xs text-muted">{formatDate(n.createdAt)}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`truncate ${n.read ? "font-semibold" : "font-bold"}`}>{n.title}</p>
+                    <span className="shrink-0 text-xs text-muted">{formatWhen(n.createdAt)}</span>
+                  </div>
+                  {n.body && (
+                    <p className={`mt-0.5 line-clamp-2 text-sm ${n.read ? "text-muted" : "text-foreground/80"}`}>
+                      {n.body}
+                    </p>
+                  )}
                 </div>
+                {!n.read && <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-brand" />}
               </div>
             );
-            return (
-              <li key={n.id}>{n.link ? <Link href={n.link}>{body}</Link> : body}</li>
-            );
+            return <li key={n.id}>{n.link ? <Link href={n.link} className="block">{row}</Link> : row}</li>;
           })}
         </ul>
       )}

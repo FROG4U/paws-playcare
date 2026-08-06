@@ -6,12 +6,13 @@
 // Both are idempotent and safe to run more than once.
 
 import { prisma } from "./prisma";
-import { INVOICE_STATUS, NOTIF_TYPE, USER_STATUS, WALK_STATUS } from "./constants";
+import { INVOICE_STATUS, NOTIF_TYPE, USER_STATUS, WALK_STATUS, ROLES } from "./constants";
 import { atUtcMidnight, dayKey, formatDate } from "./dates";
 import { formatMoney } from "./money";
 import { dueAtFor, periodLabel } from "./billing";
 import { chargeOffSession } from "./stripe";
 import { sendEmail, emailShell } from "./email";
+import { sendCardReminderEmail } from "./account-emails";
 import { notify, notifyAdmins } from "./notifications";
 
 const GRACE_DAYS = 7; // how long an unpaid invoice is retried before the account is blocked
@@ -300,6 +301,46 @@ export async function warnExpiringCards(now: Date = new Date()) {
 // Block clients with an invoice still unpaid more than GRACE_DAYS past its due
 // date: suspend the account and cancel their upcoming walks. They reactivate by
 // paying (handled in chargeDueInvoices).
+// Chase active clients who still have no payment card on file — an in-app
+// notification + email asking them to add one. Deduped: at most once every 3
+// days per client (won't repeat while a recent ADD_CARD notification exists).
+export async function remindClientsWithoutCard(now: Date = new Date()) {
+  const clients = await prisma.user.findMany({
+    where: {
+      role: ROLES.CLIENT,
+      status: USER_STATUS.ACTIVE,
+      paymentMethodId: null,
+      archivedAt: null,
+    },
+    select: { id: true, name: true, email: true },
+  });
+
+  const since = new Date(now.getTime() - 3 * 86400000);
+  let cardReminders = 0;
+  for (const c of clients) {
+    const recent = await prisma.notification.findFirst({
+      where: { userId: c.id, type: NOTIF_TYPE.ADD_CARD, createdAt: { gte: since } },
+      select: { id: true },
+    });
+    if (recent) continue;
+
+    await notify({
+      userId: c.id,
+      type: NOTIF_TYPE.ADD_CARD,
+      title: "Add your payment details",
+      body: "Please enter your payment card to secure your bookings — without a card on file, your bookings may be cancelled.",
+      link: "/client/payment",
+    });
+    try {
+      await sendCardReminderEmail(c.email, c.name);
+    } catch {
+      // ignore email failures
+    }
+    cardReminders += 1;
+  }
+  return { cardReminders };
+}
+
 export async function blockOverdueClients(now: Date = new Date()) {
   const cutoff = new Date(now.getTime() - GRACE_DAYS * 86400000);
 
