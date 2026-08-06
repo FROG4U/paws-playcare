@@ -156,7 +156,9 @@ export function BookingForm({
 
   // Exact schedule for the regular ongoing booking over the next 12 weeks.
   const repeatPlan = useMemo(() => {
-    const effEnd = startDate ? addDaysIso(startDate, ONGOING_HORIZON_DAYS) : "";
+    // -1 so the inclusive window spans exactly 12 weeks (84 days), not 85 —
+    // otherwise the start weekday is counted a 13th time.
+    const effEnd = startDate ? addDaysIso(startDate, ONGOING_HORIZON_DAYS - 1) : "";
     let total = 0, count = 0;
     let first: string | null = null;
     if (startDate && effEnd) {

@@ -97,7 +97,9 @@ export async function createBooking(input: BookInput): Promise<BookResult> {
   const ongoing = input.endMode !== "DATE";
   let endStr: string;
   if (ongoing) {
-    endStr = dayKey(new Date(atUtcMidnight(input.startDate).getTime() + ONGOING_HORIZON_DAYS * 86400000));
+    // -1 so the inclusive window spans exactly 12 weeks (84 days), matching the
+    // estimate shown on the booking form.
+    endStr = dayKey(new Date(atUtcMidnight(input.startDate).getTime() + (ONGOING_HORIZON_DAYS - 1) * 86400000));
   } else {
     if (!input.endDate) return { ok: false, error: "Please pick an end date, or choose to repeat ongoing." };
     if (input.endDate < input.startDate) return { ok: false, error: "The end date must be on or after the start date." };

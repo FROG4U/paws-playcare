@@ -341,7 +341,7 @@ export async function resumeBooking(bookingId: string): Promise<EditResult> {
       const useDays = days.filter((d) => svcDays.includes(d));
       const bhKeys = await bankHolidayKeys();
       const startIso = dayKey(new Date());
-      const endIso = dayKey(new Date(Date.now() + ONGOING_HORIZON_DAYS * 86400000));
+      const endIso = dayKey(new Date(Date.now() + (ONGOING_HORIZON_DAYS - 1) * 86400000));
       const { dates } = expandRecurring(useDays, startIso, endIso, bhKeys);
       // Skip any date that already has a non-cancelled walk.
       const activeKeys = new Set(
