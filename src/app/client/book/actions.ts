@@ -34,6 +34,9 @@ export async function createBooking(input: BookInput): Promise<BookResult> {
   if (user.status !== "ACTIVE") {
     return { ok: false, error: "Your account is still awaiting approval, so you can't book yet." };
   }
+  if (!user.paymentMethodId) {
+    return { ok: false, error: "Please add a payment card before booking a walk." };
+  }
 
   const service = (await getServices()).find((s) => s.id === input.serviceId && s.active);
   if (!service) return { ok: false, error: "Please choose a service." };
