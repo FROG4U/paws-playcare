@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+// Where the in-progress booking is stashed while the client pops over to add a
+// payment card, so nothing they filled in is lost.
+const DRAFT_KEY = "ppc-booking-draft";
 import { formatMoney } from "@/lib/money";
 import { Icon } from "@/components/Icon";
 import { createBooking, type BookInput } from "./actions";
@@ -68,11 +72,13 @@ export function BookingForm({
   dogs,
   bankHolidays,
   todayIso,
+  hasCard,
 }: {
   services: BookServiceOption[];
   dogs: BookDogOption[];
   bankHolidays: string[];
   todayIso: string;
+  hasCard: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -94,6 +100,25 @@ export function BookingForm({
   // Extra one-off days (collapsible)
   const [extraOpen, setExtraOpen] = useState(false);
   const [dates, setDates] = useState<string[]>([]);
+
+  // Coming back from adding a card mid-booking → restore what they'd filled in.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(DRAFT_KEY);
+      const d = JSON.parse(raw);
+      if (Array.isArray(d.serviceIds) && d.serviceIds.length) setServiceIds(d.serviceIds);
+      if (Array.isArray(d.dogIds)) setDogIds(d.dogIds);
+      if (d.daysByService && typeof d.daysByService === "object") setDaysByService(d.daysByService);
+      if (typeof d.startDate === "string") setStartDate(d.startDate);
+      if (typeof d.agreeTerms === "boolean") setAgreeTerms(d.agreeTerms);
+      if (Array.isArray(d.dates)) setDates(d.dates);
+      if (typeof d.extraOpen === "boolean") setExtraOpen(d.extraOpen);
+    } catch {
+      // ignore a malformed draft
+    }
+  }, []);
 
   const selectedServices = useMemo(
     () => services.filter((s) => serviceIds.includes(s.id)),
@@ -185,6 +210,20 @@ export function BookingForm({
   const removeDate = (d: string) => setDates((p) => p.filter((x) => x !== d));
 
   function runInputs(inputs: BookInput[]) {
+    // No card yet → stash the booking and send them to add a card; they'll come
+    // straight back here with everything intact and can submit.
+    if (!hasCard) {
+      try {
+        sessionStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({ serviceIds, dogIds, daysByService, startDate, agreeTerms, dates, extraOpen })
+        );
+      } catch {
+        // sessionStorage unavailable — proceed to payment anyway
+      }
+      router.push("/client/payment?next=book");
+      return;
+    }
     startTransition(async () => {
       let created = 0, skipped = 0, ongoing = false, bookings = 0;
       for (const inp of inputs) {
@@ -379,8 +418,13 @@ export function BookingForm({
           </p>
         )}
         <button onClick={submitRegular} disabled={pending} className="btn-primary w-full">
-          {pending ? "Booking…" : "Set up regular walks"}
+          {pending ? "Booking…" : hasCard ? "Set up regular walks" : "Continue to add a card"}
         </button>
+        {!hasCard && (
+          <p className="text-center text-xs text-muted">
+            You&apos;ll add a payment card to confirm — we&apos;ll bring you right back here with your booking.
+          </p>
+        )}
       </section>
 
       {/* Extra one-off days (collapsible) */}
@@ -440,8 +484,13 @@ export function BookingForm({
               <span className="text-lg font-bold">{extraReady ? formatMoney(datesTotal) : "—"}</span>
             </div>
             <button onClick={submitExtra} disabled={pending || !extraReady} className="btn-primary w-full">
-              {pending ? "Booking…" : "Add extra day(s)"}
+              {pending ? "Booking…" : hasCard ? "Add extra day(s)" : "Continue to add a card"}
             </button>
+            {!hasCard && extraReady && (
+              <p className="text-center text-xs text-muted">
+                You&apos;ll add a payment card to confirm — we&apos;ll bring you right back here.
+              </p>
+            )}
           </div>
         )}
       </section>

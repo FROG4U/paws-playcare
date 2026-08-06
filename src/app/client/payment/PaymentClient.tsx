@@ -29,9 +29,11 @@ type Card = {
 export function PaymentClient({
   publishableKey,
   card,
+  returnTo,
 }: {
   publishableKey: string;
   card: Card;
+  returnTo?: string | null;
 }) {
   const router = useRouter();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -53,8 +55,10 @@ export function PaymentClient({
 
   const onSaved = useCallback(() => {
     setClientSecret(null);
-    router.refresh();
-  }, [router]);
+    // Came here mid-booking → go back so their filled-in booking is waiting.
+    if (returnTo) router.push(returnTo);
+    else router.refresh();
+  }, [router, returnTo]);
 
   const onRemove = useCallback(async () => {
     setRemoving(true);

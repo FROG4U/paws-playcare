@@ -5,8 +5,14 @@ import { PageHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { PaymentClient } from "./PaymentClient";
 
-export default async function PaymentPage() {
+export default async function PaymentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const user = await requireClient();
+  const { next } = await searchParams;
+  const fromBooking = next === "book";
 
   const card = user.paymentMethodId
     ? {
@@ -24,6 +30,16 @@ export default async function PaymentPage() {
         title="Payment"
         subtitle="Add a card and we'll collect payment automatically after each completed walk."
       />
+
+      {fromBooking && !user.paymentMethodId && (
+        <div className="flex items-start gap-3 rounded-xl bg-brand-soft p-4 text-brand-dark">
+          <Icon name="paw" className="mt-0.5 h-5 w-5 shrink-0" />
+          <p className="text-sm">
+            <span className="font-bold">Almost there!</span> Add a card to confirm your booking — we&apos;ve kept
+            everything you filled in, and you&apos;ll go straight back to it.
+          </p>
+        </div>
+      )}
 
       {user.status !== USER_STATUS.ACTIVE ? (
         <div className="card flex items-start gap-3">
@@ -51,6 +67,7 @@ export default async function PaymentPage() {
         <PaymentClient
           publishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!}
           card={card}
+          returnTo={fromBooking ? "/client/book" : null}
         />
       )}
 

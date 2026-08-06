@@ -5,7 +5,6 @@ import { getServices, serviceDays } from "@/lib/services";
 import { bankHolidayKeys } from "@/lib/availability";
 import { dayKey } from "@/lib/dates";
 import { PageHeader, EmptyState } from "@/components/ui";
-import { Icon } from "@/components/Icon";
 import { BookingForm, type BookServiceOption, type BookDogOption } from "./BookingForm";
 
 export default async function BookPage() {
@@ -19,28 +18,6 @@ export default async function BookPage() {
           Your account is still awaiting approval. Once an admin approves you,
           you&apos;ll be able to book here.
         </p>
-      </div>
-    );
-  }
-
-  // A payment card is required before any booking can be made.
-  if (!user.paymentMethodId) {
-    return (
-      <div className="space-y-6">
-        <PageHeader icon="calendar" title="Book a walk" />
-        <EmptyState
-          icon="card"
-          title="Add a payment card to start booking"
-          action={
-            <Link href="/client/payment" className="btn-primary">
-              <Icon name="card" className="h-4 w-4" />
-              Add a card
-            </Link>
-          }
-        >
-          We collect payment automatically after each completed walk, so we need a
-          card on file before you can book. It only takes a minute.
-        </EmptyState>
       </div>
     );
   }
@@ -80,7 +57,7 @@ export default async function BookPage() {
           There&apos;s nothing to book right now — please check back soon.
         </EmptyState>
       ) : (
-        <BookingForm services={serviceOptions} dogs={dogOptions} bankHolidays={[...bhKeys]} todayIso={todayIso} />
+        <BookingForm services={serviceOptions} dogs={dogOptions} bankHolidays={[...bhKeys]} todayIso={todayIso} hasCard={!!user.paymentMethodId} />
       )}
     </div>
   );
