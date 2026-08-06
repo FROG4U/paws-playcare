@@ -8,6 +8,7 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
+import { rateLimit, clientIp, friendlyTooMany } from "@/lib/rate-limit";
 
 export type AuthState = { error?: string };
 
@@ -19,6 +20,11 @@ export async function loginAction(
   const password = String(formData.get("password") || "");
 
   if (!email || !password) return { error: "Enter your email and password." };
+
+  // Throttle brute-force: by IP and per-email.
+  const ip = await clientIp();
+  if (!rateLimit(`login:ip:${ip}`, 20, 15 * 60_000).ok) return { error: friendlyTooMany };
+  if (!rateLimit(`login:email:${email}`, 8, 15 * 60_000).ok) return { error: friendlyTooMany };
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await verifyPassword(password, user.passwordHash))) {

@@ -1,7 +1,30 @@
 import { prisma } from "@/lib/prisma";
 import { marked } from "marked";
+import sanitizeHtml from "sanitize-html";
 
 marked.setOptions({ gfm: true, breaks: true });
+
+// Allowlist for rendered page HTML. Blocks <script>, event handlers and unsafe
+// URL schemes (javascript:) while keeping normal marketing formatting.
+const SANITIZE_OPTS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "ul", "ol", "li", "blockquote",
+    "strong", "em", "b", "i", "u", "s", "code", "pre", "hr", "br", "span",
+    "img", "table", "thead", "tbody", "tr", "th", "td",
+  ],
+  allowedAttributes: {
+    a: ["href", "title", "target", "rel"],
+    img: ["src", "alt", "title", "width", "height"],
+    span: ["class"],
+    "*": ["class"],
+  },
+  allowedSchemes: ["http", "https", "mailto", "tel"],
+  allowedSchemesByTag: { img: ["http", "https"] },
+  // Force safe rel on links that open a new tab.
+  transformTags: {
+    a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer nofollow" }),
+  },
+};
 
 // The public marketing pages, seeded once with content mirrored from the
 // current pawsplaycare.co.uk site. Everything is editable in admin → Pages.
@@ -111,5 +134,6 @@ export async function getPage(slug: string) {
 }
 
 export function renderMarkdown(body: string): string {
-  return marked.parse(body || "", { async: false }) as string;
+  const html = marked.parse(body || "", { async: false }) as string;
+  return sanitizeHtml(html, SANITIZE_OPTS);
 }

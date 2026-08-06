@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { notifyAdmins } from "@/lib/notifications";
 import { sendWelcomeEmail } from "@/lib/account-emails";
+import { rateLimit, clientIp, friendlyTooMany } from "@/lib/rate-limit";
 import { NOTIF_TYPE, PAY_CADENCE, ROLES, USER_STATUS } from "@/lib/constants";
 
 const req = (label: string) =>
@@ -71,6 +72,11 @@ export type RegisterResult = { ok: true } | { ok: false; error: string };
 export async function registerClient(
   raw: unknown
 ): Promise<RegisterResult> {
+  // Throttle sign-up spam per IP.
+  if (!rateLimit(`register:ip:${await clientIp()}`, 6, 60 * 60_000).ok) {
+    return { ok: false, error: friendlyTooMany };
+  }
+
   const parsed = registerSchema.safeParse(raw);
   if (!parsed.success) {
     const first = parsed.error.issues[0];

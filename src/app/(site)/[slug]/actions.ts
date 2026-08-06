@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { notifyAdmins } from "@/lib/notifications";
 import { NOTIF_TYPE } from "@/lib/constants";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Please enter your name."),
@@ -23,8 +24,9 @@ export async function submitContact(
   const honeypot = String(formData.get("company") || "");
   const ts = Number(formData.get("ts") || 0);
   const tooFast = ts > 0 && Date.now() - ts < 2500;
-  if (honeypot || tooFast) {
-    return { ok: true }; // silently drop suspected spam
+  // Honeypot / timing / per-IP rate cap — all silently drop suspected spam.
+  if (honeypot || tooFast || !rateLimit(`contact:ip:${await clientIp()}`, 6, 60 * 60_000).ok) {
+    return { ok: true };
   }
 
   const parsed = schema.safeParse({

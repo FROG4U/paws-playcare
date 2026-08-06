@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { sendPasswordResetEmail } from "@/lib/account-emails";
+import { rateLimit, clientIp, friendlyTooMany } from "@/lib/rate-limit";
 
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -18,6 +19,11 @@ export type ForgotState = { done?: boolean; error?: string };
 export async function requestPasswordReset(_prev: ForgotState, formData: FormData): Promise<ForgotState> {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   if (!email) return { error: "Please enter your email address." };
+
+  // Throttle reset spam: cap per IP and per target email (anti email-bombing).
+  const ip = await clientIp();
+  if (!rateLimit(`forgot:ip:${ip}`, 10, 60 * 60_000).ok) return { error: friendlyTooMany };
+  if (!rateLimit(`forgot:email:${email}`, 4, 60 * 60_000).ok) return { done: true };
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (user) {
@@ -41,6 +47,9 @@ export async function resetPassword(_prev: ResetState, formData: FormData): Prom
   const password = String(formData.get("password") || "");
   const confirm = String(formData.get("confirm") || "");
 
+  const ip = await clientIp();
+  if (!rateLimit(`reset:ip:${ip}`, 20, 60 * 60_000).ok) return { error: friendlyTooMany };
+
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
   if (password !== confirm) return { error: "Those passwords don't match." };
 
@@ -51,7 +60,8 @@ export async function resetPassword(_prev: ResetState, formData: FormData): Prom
 
   await prisma.$transaction([
     prisma.user.update({ where: { id: rec.userId }, data: { passwordHash: await hashPassword(password) } }),
-    prisma.passwordResetToken.update({ where: { id: rec.id }, data: { usedAt: new Date() } }),
+    // Consume this token and invalidate any other outstanding reset links.
+    prisma.passwordResetToken.deleteMany({ where: { userId: rec.userId } }),
   ]);
   return { ok: true };
 }

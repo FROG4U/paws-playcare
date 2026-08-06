@@ -4,9 +4,23 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
 const COOKIE = "ppc_session";
-const secret = new TextEncoder().encode(
-  process.env.AUTH_SECRET || "dev-secret-change-me"
-);
+
+// Session-signing secret. In production this MUST be a strong, private value —
+// never the built-in dev fallback (that would let anyone forge admin sessions).
+// Fail loudly at startup rather than silently signing with a public default.
+function resolveSecret(): string {
+  const s = process.env.AUTH_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    if (!s || s.trim().length < 16 || s === "dev-secret-change-me") {
+      throw new Error(
+        "AUTH_SECRET must be set to a strong, private value in production (>= 16 chars). Refusing to start with a weak/default session secret."
+      );
+    }
+    return s;
+  }
+  return s || "dev-secret-change-me";
+}
+const secret = new TextEncoder().encode(resolveSecret());
 
 export type SessionPayload = {
   uid: string;
