@@ -35,7 +35,9 @@ const SECURITY_HEADERS = {
   "X-Frame-Options": "SAMEORIGIN",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  // No includeSubDomains until the www subdomain is on the TLS cert — otherwise
+  // HSTS would hard-block www.pawsplaycare.co.uk with no bypass.
+  "Strict-Transport-Security": "max-age=31536000",
   "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
 };
 
