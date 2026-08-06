@@ -38,7 +38,11 @@ const nextConfig: NextConfig = {
   // These read data files from node_modules at runtime — keep them out of the
   // bundle so those reads work in the server build.
   serverExternalPackages: ["pdfkit", "sanitize-html"],
+  // In production the custom server.js sets these headers (next.config headers()
+  // isn't reliably applied with a custom server), so only apply them here for
+  // local dev (`next dev`) to avoid sending them twice.
   async headers() {
+    if (process.env.NODE_ENV === "production") return [];
     return [{ source: "/:path*", headers: securityHeaders }];
   },
 };
