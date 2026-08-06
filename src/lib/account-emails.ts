@@ -1,0 +1,48 @@
+// Branded account-lifecycle emails (welcome, approval, password reset). Each
+// no-ops with a log if RESEND_API_KEY isn't set, so nothing breaks in dev.
+
+import { sendEmail, emailShell, baseUrl } from "./email";
+
+const btn = (href: string, label: string) =>
+  `<a href="${href}" style="display:inline-block;background:#2ea6d8;color:#ffffff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;">${label}</a>`;
+
+const p = (text: string) => `<p style="margin:0 0 12px;line-height:1.5;">${text}</p>`;
+
+// Sent right after a client registers (account is pending admin approval).
+export async function sendWelcomeEmail(to: string, name: string) {
+  const first = name.split(" ")[0] || "there";
+  const html = emailShell(
+    "Welcome to Paws Playcare! 🐾",
+    p(`Hi ${first},`) +
+      p("Thanks for signing up. We've received your registration and a member of our team is reviewing your account.") +
+      p("Once you're approved we'll email you again — then you can add a payment card and start booking walks.") +
+      p(`In the meantime you can sign in any time at ${btn(`${baseUrl()}/online-booking-form`, "Sign in")}`)
+  );
+  return sendEmail({ to, subject: "Welcome to Paws Playcare 🐾", html });
+}
+
+// Sent when an admin approves the client's account.
+export async function sendApprovalEmail(to: string, name: string) {
+  const first = name.split(" ")[0] || "there";
+  const html = emailShell(
+    "Your account is approved! 🎉",
+    p(`Hi ${first},`) +
+      p("Great news — your Paws Playcare account has been approved.") +
+      p("Add a payment card and you're ready to book walks and play sessions.") +
+      p(btn(`${baseUrl()}/client/payment`, "Add a card & get started"))
+  );
+  return sendEmail({ to, subject: "You're approved — welcome to Paws Playcare 🎉", html });
+}
+
+// Sent for a "forgot password" request (contains the single-use reset link).
+export async function sendPasswordResetEmail(to: string, rawToken: string) {
+  const link = `${baseUrl()}/reset-password?token=${rawToken}`;
+  const html = emailShell(
+    "Reset your password",
+    p("We received a request to reset the password on your Paws Playcare account.") +
+      p(btn(link, "Choose a new password")) +
+      p("This link expires in 1 hour and can only be used once.") +
+      p('<span style="color:#64748b;font-size:13px;">If you didn\'t ask for this, you can safely ignore this email — your password won\'t change.</span>')
+  );
+  return sendEmail({ to, subject: "Reset your Paws Playcare password", html });
+}

@@ -19,6 +19,11 @@ function fromAddress(): string {
   return process.env.EMAIL_FROM || "Paws Playcare <onboarding@resend.dev>";
 }
 
+// The public site origin, for links in emails.
+export function baseUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL || "https://pawsplaycare.co.uk").replace(/\/$/, "");
+}
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;

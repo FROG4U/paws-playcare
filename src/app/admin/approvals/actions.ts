@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { notify } from "@/lib/notifications";
+import { sendApprovalEmail } from "@/lib/account-emails";
 import { NOTIF_TYPE, ROLES, USER_STATUS } from "@/lib/constants";
 
 export async function approveClient(userId: string) {
@@ -29,6 +30,12 @@ export async function approveClient(userId: string) {
     body: "Add a payment card to start booking walks.",
     link: "/client/payment",
   });
+
+  try {
+    await sendApprovalEmail(client.email, client.name);
+  } catch {
+    // ignore — approval succeeds regardless of email
+  }
 
   revalidatePath("/admin/approvals");
   revalidatePath("/admin");

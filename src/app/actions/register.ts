@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { notifyAdmins } from "@/lib/notifications";
+import { sendWelcomeEmail } from "@/lib/account-emails";
 import { NOTIF_TYPE, PAY_CADENCE, ROLES, USER_STATUS } from "@/lib/constants";
 
 const req = (label: string) =>
@@ -152,6 +153,13 @@ export async function registerClient(
     body: `${user.name} (${user.email}) registered with ${data.dogs.length} dog(s).`,
     link: "/admin/approvals",
   });
+
+  // Welcome email (no-ops if email isn't configured; never blocks sign-up).
+  try {
+    await sendWelcomeEmail(user.email, user.name);
+  } catch {
+    // ignore — the account is created regardless
+  }
 
   return { ok: true };
 }

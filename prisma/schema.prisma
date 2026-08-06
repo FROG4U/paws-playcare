@@ -188,6 +188,17 @@ model HolidayRate {
   createdAt   DateTime @default(now())
 }
 
+// Single-use, expiring tokens for the "forgot password" flow. The raw token is
+// emailed to the user; only its SHA-256 hash is stored here.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
 model BankHoliday {
   id       String   @id @default(cuid())
   date     DateTime @unique
