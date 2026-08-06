@@ -183,7 +183,10 @@ export function BookingForm({
   );
 
   const regularHasDays = selectedServices.some((s) => (daysByService[s.id]?.length ?? 0) > 0);
-  const regularReady = regularHasDays && !!startDate && agreeTerms && numDogs > 0 && repeatPlan.count > 0;
+  // Drives the price/summary display — depends only on the chosen schedule, NOT
+  // on the T&C tick (ticking a legal box must never change the shown price).
+  // The T&C is enforced separately in submitRegular().
+  const regularReady = regularHasDays && !!startDate && numDogs > 0 && repeatPlan.count > 0;
   const extraReady = dates.length > 0 && routing.bad.length === 0 && numDogs > 0;
 
   function toggleService(id: string) {
