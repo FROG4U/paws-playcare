@@ -57,7 +57,7 @@ export default async function BookPage() {
           There&apos;s nothing to book right now — please check back soon.
         </EmptyState>
       ) : (
-        <BookingForm services={serviceOptions} dogs={dogOptions} bankHolidays={[...bhKeys]} todayIso={todayIso} hasCard={!!user.paymentMethodId} />
+        <BookingForm services={serviceOptions} dogs={dogOptions} bankHolidays={[...bhKeys]} todayIso={todayIso} hasCard={!!user.paymentMethodId} payCadence={user.payCadence} />
       )}
     </div>
   );

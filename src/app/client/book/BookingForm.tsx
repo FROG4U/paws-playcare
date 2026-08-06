@@ -73,12 +73,14 @@ export function BookingForm({
   bankHolidays,
   todayIso,
   hasCard,
+  payCadence,
 }: {
   services: BookServiceOption[];
   dogs: BookDogOption[];
   bankHolidays: string[];
   todayIso: string;
   hasCard: boolean;
+  payCadence: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -185,11 +187,40 @@ export function BookingForm({
   );
 
   const regularHasDays = selectedServices.some((s) => (daysByService[s.id]?.length ?? 0) > 0);
-  // Drives the price/summary display — depends only on the chosen schedule, NOT
-  // on the T&C tick (ticking a legal box must never change the shown price).
-  // The T&C is enforced separately in submitRegular().
+  // Drives the summary line — depends only on the chosen schedule, NOT on the
+  // T&C tick (ticking a legal box must never change the shown price). The T&C is
+  // enforced separately in submitRegular().
   const regularReady = regularHasDays && !!startDate && numDogs > 0 && repeatPlan.count > 0;
   const extraReady = dates.length > 0 && routing.bad.length === 0 && numDogs > 0;
+
+  // Price shown to match how the client is billed — weekly clients see the
+  // weekly cost, monthly clients see the (approx) monthly cost, daily per walk.
+  const cadencePrice = useMemo(() => {
+    const perWalk = (selectedServices[0]?.pricePerDog ?? 0) * dogMult;
+    const walksLabel = (n: number) => `${n} walk${n !== 1 ? "s" : ""}`;
+    if (weeklyCount === 0) {
+      return { label: "Per walk", value: formatMoney(perWalk), note: "" };
+    }
+    if (payCadence === "DAILY") {
+      return {
+        label: "Per walk",
+        value: formatMoney(perWalk),
+        note: `${walksLabel(weeklyCount)} a week — billed the evening of each walk.`,
+      };
+    }
+    if (payCadence === "MONTHLY") {
+      return {
+        label: `Per month · ~${walksLabel(weeklyCount * 4)}`,
+        value: `~${formatMoney(weeklyTotal * 4)}`,
+        note: `${walksLabel(weeklyCount)} a week × ~4 weeks — invoiced at the end of each month (some months have 5 weeks).`,
+      };
+    }
+    return {
+      label: `Per week · ${walksLabel(weeklyCount)}`,
+      value: formatMoney(weeklyTotal),
+      note: `${walksLabel(weeklyCount)} a week — invoiced every Friday.`,
+    };
+  }, [payCadence, weeklyCount, weeklyTotal, selectedServices, dogMult]);
 
   function toggleService(id: string) {
     setServiceIds((prev) => {
@@ -402,20 +433,11 @@ export function BookingForm({
         </label>
 
         <div className="flex items-center justify-between">
-          <span className="text-muted">
-            {regularReady
-              ? `Next 12 weeks · ${repeatPlan.count} walk${repeatPlan.count !== 1 ? "s" : ""}`
-              : weeklyCount > 0
-                ? `Per week · ${weeklyCount} walk${weeklyCount !== 1 ? "s" : ""}`
-                : "Per walk"}
-          </span>
-          <span className="text-lg font-bold">
-            {regularReady ? formatMoney(repeatPlan.total) : weeklyCount > 0 ? formatMoney(weeklyTotal) : formatMoney(selectedServices[0]?.pricePerDog * dogMult)}
-          </span>
+          <span className="text-muted">{cadencePrice.label}</span>
+          <span className="text-lg font-bold">{cadencePrice.value}</span>
         </div>
         <p className="text-xs text-muted">
-          {formatMoney(selectedServices[0]?.pricePerDog ?? 0)} per dog, per walk{numDogs > 1 ? ` · ${numDogs} dogs` : ""}.
-          {weeklyCount > 0 ? ` You've chosen ${weeklyCount} walk${weeklyCount !== 1 ? "s" : ""} a week.` : ""}
+          {formatMoney(selectedServices[0]?.pricePerDog ?? 0)} per dog, per walk{numDogs > 1 ? ` · ${numDogs} dogs` : ""}. {cadencePrice.note}
         </p>
         {regularReady && (
           <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm font-medium text-brand-dark">
