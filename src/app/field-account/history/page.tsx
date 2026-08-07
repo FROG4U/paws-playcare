@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-import { slotLabel } from "@/lib/field";
+import { slotLabel, groupSlotsByDay } from "@/lib/field";
 import { FIELD_BOOKING_STATUS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -75,16 +75,19 @@ export default async function FieldHistory() {
                   </div>
                   <div className="space-y-2">
                     {list.map((b) => {
-                      const hours = b.slots.map((s) => s.hour).sort((a, c) => a - c);
+                      const groups = groupSlotsByDay(b.slots);
                       return (
                         <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 first:border-0 first:pt-0">
                           <div>
-                            <p className="text-sm font-semibold">{formatDate(b.date)}</p>
-                            <p className="text-xs text-muted">
-                              {hours.map(slotLabel).join(", ")} · Ref {b.reference}
-                            </p>
+                            {groups.map((g) => (
+                              <p key={g.dateKey} className="text-sm">
+                                <span className="font-semibold">{formatDate(g.date)}</span>{" "}
+                                <span className="text-xs text-muted">{g.hours.map(slotLabel).join(", ")}</span>
+                              </p>
+                            ))}
+                            <p className="text-xs text-muted">Ref {b.reference}</p>
                           </div>
-                          <span className="text-sm font-semibold">{formatMoney(b.total)}</span>
+                          <span className="text-sm font-semibold">{b.total === 0 ? "Free" : formatMoney(b.total)}</span>
                         </div>
                       );
                     })}

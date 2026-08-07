@@ -4,16 +4,28 @@
 import type Stripe from "stripe";
 import { prisma } from "./prisma";
 import { getStripe } from "./stripe";
-import { getFieldSettings } from "./field";
+import { getFieldSettings, groupSlotsByDay } from "./field";
 import { sendFieldConfirmation } from "./field-email";
 import { notifyAdmins } from "./notifications";
 import { FIELD_BOOKING_STATUS, NOTIF_TYPE } from "./constants";
 import { formatMoney } from "./money";
 import { formatDate } from "./dates";
 
+// Back-compat wrapper for the Stripe webhook (paid via a PaymentIntent).
 export async function markFieldBookingPaid(
   bookingId: string,
   pi: Stripe.PaymentIntent
+): Promise<void> {
+  return finalizeFieldBookingPaid(bookingId, pi);
+}
+
+// Finalise a reserved booking: mark PAID, count the coupon, cache a saved card
+// (if a PaymentIntent opted in), send the confirmation email and notify admins.
+// `pi` is null for free bookings (a full discount → nothing to pay), which
+// still get the confirmation email exactly as paid ones do.
+export async function finalizeFieldBookingPaid(
+  bookingId: string,
+  pi?: Stripe.PaymentIntent | null
 ): Promise<void> {
   const booking = await prisma.fieldBooking.findUnique({
     where: { id: bookingId },
@@ -26,7 +38,7 @@ export async function markFieldBookingPaid(
     data: {
       status: FIELD_BOOKING_STATUS.PAID,
       paidAt: new Date(),
-      stripePaymentIntentId: pi.id,
+      stripePaymentIntentId: pi?.id ?? booking.stripePaymentIntentId,
     },
   });
 
@@ -39,7 +51,7 @@ export async function markFieldBookingPaid(
   }
 
   // Cache the saved card onto the account holder if they opted in.
-  if (booking.clientId && pi.setup_future_usage && pi.payment_method) {
+  if (booking.clientId && pi?.setup_future_usage && pi.payment_method) {
     try {
       const pmId =
         typeof pi.payment_method === "string" ? pi.payment_method : pi.payment_method.id;
@@ -69,14 +81,12 @@ export async function markFieldBookingPaid(
   // The confirmation email (with the gate/padlock access codes) — send once.
   if (!booking.emailSentAt) {
     const settings = await getFieldSettings();
-    const hours = booking.slots.map((s) => s.hour).sort((a, b) => a - b);
     const res = await sendFieldConfirmation({
       settings,
       to: booking.email,
       clientName: booking.name,
       reference: booking.reference,
-      date: booking.date,
-      hours,
+      groups: groupSlotsByDay(booking.slots),
       total: booking.total,
     });
     if (res.ok) {

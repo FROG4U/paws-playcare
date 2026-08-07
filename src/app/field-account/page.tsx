@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { atUtcMidnight, formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-import { slotLabel } from "@/lib/field";
+import { slotLabel, groupSlotsByDay } from "@/lib/field";
 import { FIELD_BOOKING_STATUS } from "@/lib/constants";
 import { Icon } from "@/components/Icon";
 import { ProfileForm } from "./ProfileForm";
@@ -49,15 +49,21 @@ export default async function FieldAccountHome() {
         ) : (
           <div className="space-y-2">
             {upcoming.map((b) => {
-              const hours = b.slots.map((s) => s.hour).sort((a, c) => a - c);
+              const groups = groupSlotsByDay(b.slots);
               return (
                 <div key={b.id} className="card flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="font-bold">{formatDate(b.date)}</p>
-                    <p className="text-sm text-muted">{hours.map(slotLabel).join(", ")}</p>
+                    {groups.map((g) => (
+                      <p key={g.dateKey}>
+                        <span className="font-bold">{formatDate(g.date)}</span>{" "}
+                        <span className="text-sm text-muted">{g.hours.map(slotLabel).join(", ")}</span>
+                      </p>
+                    ))}
                     <p className="mt-0.5 text-xs text-muted">Ref {b.reference}</p>
                   </div>
-                  <span className="badge bg-success/15 text-success">{formatMoney(b.total)} paid</span>
+                  <span className="badge bg-success/15 text-success">
+                    {b.total === 0 ? "Free" : `${formatMoney(b.total)} paid`}
+                  </span>
                 </div>
               );
             })}

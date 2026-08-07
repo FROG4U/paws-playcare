@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { atUtcMidnight, formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-import { slotLabel } from "@/lib/field";
+import { slotLabel, groupSlotsByDay } from "@/lib/field";
 import { FIELD_BOOKING_STATUS } from "@/lib/constants";
 import { CancelButton } from "./CancelButton";
 
@@ -63,14 +63,16 @@ function Section({ title, rows, cancellable }: { title: string; rows: Row[]; can
       ) : (
         <div className="space-y-2">
           {rows.map((b) => {
-            const hours = b.slots.map((s) => s.hour).sort((a, c) => a - c);
+            const groups = groupSlotsByDay(b.slots);
             return (
               <div key={b.id} className="card flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-bold">
-                    {formatDate(b.date)}{" "}
-                    <span className="ml-1 text-sm font-normal text-muted">{hours.map(slotLabel).join(", ")}</span>
-                  </p>
+                  {groups.map((g) => (
+                    <p key={g.dateKey} className="font-bold">
+                      {formatDate(g.date)}{" "}
+                      <span className="ml-1 text-sm font-normal text-muted">{g.hours.map(slotLabel).join(", ")}</span>
+                    </p>
+                  ))}
                   <p className="text-sm text-muted">
                     {b.name} · {b.email}
                     {b.phone ? ` · ${b.phone}` : ""}

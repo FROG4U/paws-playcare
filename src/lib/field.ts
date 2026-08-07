@@ -200,6 +200,21 @@ export async function releaseStaleFieldHolds(
   return stale.length;
 }
 
+// Group a booking's slots by calendar day (sorted), so multi-day bookings can
+// be displayed and emailed as "Sat 8 Aug: 10:00–11:00, 11:00–12:00; Sun …".
+export type SlotGroup = { dateKey: string; date: Date; hours: number[] };
+export function groupSlotsByDay(slots: { date: Date; hour: number }[]): SlotGroup[] {
+  const m = new Map<string, SlotGroup>();
+  for (const s of slots) {
+    const k = dayKey(s.date);
+    if (!m.has(k)) m.set(k, { dateKey: k, date: s.date, hours: [] });
+    m.get(k)!.hours.push(s.hour);
+  }
+  return [...m.values()]
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+    .map((g) => ({ ...g, hours: g.hours.sort((x, y) => x - y) }));
+}
+
 // Booking reference like FB-20260810-4821.
 export function makeReference(day: Date | string): string {
   const compact = dayKey(day).replace(/-/g, "");

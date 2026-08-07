@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getFieldSettings, slotLabel } from "@/lib/field";
+import { getFieldSettings, slotLabel, groupSlotsByDay } from "@/lib/field";
 import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { Icon } from "@/components/Icon";
@@ -28,7 +28,8 @@ export default async function FieldSuccess({
     : null;
   const settings = await getFieldSettings();
   const paid = booking?.status === FIELD_BOOKING_STATUS.PAID;
-  const hours = booking ? booking.slots.map((s) => s.hour).sort((a, b) => a - b) : [];
+  const groups = booking ? groupSlotsByDay(booking.slots) : [];
+  const totalSlots = groups.reduce((n, g) => n + g.hours.length, 0);
 
   return (
     <div className="mx-auto w-full max-w-xl px-5 py-14">
@@ -40,11 +41,16 @@ export default async function FieldSuccess({
         {booking ? (
           <>
             <p className="mt-2 text-muted">
-              {formatDate(booking.date)} · {formatMoney(booking.total)}
+              {booking.total === 0 ? "Free booking" : formatMoney(booking.total)}
             </p>
             <div className="mt-4 rounded-xl bg-mist px-4 py-3 text-left text-sm">
-              <p className="font-semibold text-brand-dark">Your slot{hours.length > 1 ? "s" : ""}</p>
-              <p className="mt-1 text-muted">{hours.map(slotLabel).join(", ")}</p>
+              <p className="font-semibold text-brand-dark">Your session{totalSlots > 1 ? "s" : ""}</p>
+              {groups.map((g) => (
+                <p key={g.dateKey} className="mt-1">
+                  <span className="font-medium">{formatDate(g.date)}</span>{" "}
+                  <span className="text-muted">{g.hours.map(slotLabel).join(", ")}</span>
+                </p>
+              ))}
               <p className="mt-2 text-xs text-muted">Reference {booking.reference}</p>
             </div>
             <p className="mt-4 text-sm text-muted">

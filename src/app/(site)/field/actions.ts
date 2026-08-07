@@ -26,6 +26,7 @@ import {
   ensureCustomer,
   createFieldPaymentIntent,
 } from "@/lib/stripe";
+import { finalizeFieldBookingPaid } from "@/lib/field-run";
 import { rateLimit, clientIp, friendlyTooMany } from "@/lib/rate-limit";
 import { penceToPounds } from "@/lib/money";
 
@@ -113,29 +114,33 @@ export async function monthView(
 }
 
 export type StartResult =
-  | { ok: true; clientSecret: string; reference: string; total: number }
+  | { ok: true; free: true; reference: string } // nothing to pay → already confirmed
+  | { ok: true; free: false; clientSecret: string; reference: string; total: number }
   | { ok: false; error: string };
 
+// A day's chosen hours. A booking can span several days (multi-day cart).
+export type DaySelection = { dateKey: string; hours: number[] };
+
 export type StartInput = {
-  dateKey: string; // yyyy-mm-dd
-  hours: number[];
+  selection: DaySelection[];
   name: string;
   email: string;
-  phone?: string;
+  phone: string; // required
   couponCode?: string;
   createAccount?: boolean;
   password?: string;
   saveCard?: boolean;
 };
 
-// Reserve the chosen slots and open a Stripe PaymentIntent. The card is entered
-// and confirmed on the page; the booking is finalised (marked PAID + email
-// sent) by the Stripe webhook once the charge clears.
-export async function startFieldBooking(input: StartInput): Promise<StartResult> {
-  if (!stripeConfigured()) {
-    return { ok: false, error: "Online payment isn't available right now. Please try again later." };
-  }
+// Stripe's minimum GBP charge is £0.30 — anything below it (incl. a full
+// discount) is treated as "nothing to pay": no card, booking confirmed instantly.
+const STRIPE_MIN_PENCE = 30;
 
+// Reserve the chosen slots (across one or more days) and either open a Stripe
+// PaymentIntent, or — when there's nothing to pay — confirm immediately. Paid
+// bookings are finalised by the webhook; free ones are finalised here. Both
+// send the confirmation email.
+export async function startFieldBooking(input: StartInput): Promise<StartResult> {
   const ip = await clientIp();
   if (!rateLimit(`field-book:${ip}`, 12, 10 * 60_000).ok) {
     return { ok: false, error: friendlyTooMany };
@@ -147,48 +152,64 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
 
   const name = String(input.name || "").trim();
   const email = String(input.email || "").trim().toLowerCase();
-  const phone = String(input.phone || "").trim() || null;
+  const phone = String(input.phone || "").trim();
 
   if (!name) return { ok: false, error: "Please enter your name." };
   if (!EMAIL_RE.test(email)) return { ok: false, error: "Please enter a valid email address." };
-
-  const key = String(input.dateKey || "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return { ok: false, error: "Please choose a date." };
-
-  const hours = Array.from(new Set((input.hours || []).map((h) => Math.floor(h)))).sort(
-    (a, b) => a - b
-  );
-  if (!hours.length) return { ok: false, error: "Please choose at least one time slot." };
+  if (phone.replace(/[^0-9]/g, "").length < 7) {
+    return { ok: false, error: "Please enter a valid phone number." };
+  }
 
   const settings = await getFieldSettings();
-
-  // Date must be within the booking horizon and not in the past.
   const todayKey = dayKey(now);
-  if (key < todayKey) return { ok: false, error: "That date has already passed." };
-  const horizon = new Date(now.getTime() + settings.maxAdvanceDays * 86400000);
-  if (key > dayKey(horizon)) {
-    return { ok: false, error: `Bookings only open ${settings.maxAdvanceDays} days ahead.` };
-  }
+  const horizonKey = dayKey(new Date(now.getTime() + settings.maxAdvanceDays * 86400000));
 
-  // Every requested hour must be a real slot for that day and still free.
-  const valid = new Set(slotHoursForDay(settings, key));
-  for (const h of hours) {
-    if (!valid.has(h)) return { ok: false, error: "One of those times isn't available on that day." };
-    // Same-day: reject slots whose start hour has already passed (UTC ~ UK).
-    const startMs = new Date(`${key}T${String(h).padStart(2, "0")}:00:00.000Z`).getTime();
-    if (startMs <= now.getTime()) {
-      return { ok: false, error: "One of those times has already started. Please refresh and pick again." };
+  // Validate + flatten the multi-day selection into unique {dateKey, hour} slots.
+  const flat: { dateKey: string; hour: number }[] = [];
+  const seen = new Set<string>();
+  for (const group of input.selection || []) {
+    const key = String(group?.dateKey || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return { ok: false, error: "Please choose a date." };
+    if (key < todayKey) return { ok: false, error: "One of those dates has already passed." };
+    if (key > horizonKey) {
+      return { ok: false, error: `Bookings only open ${settings.maxAdvanceDays} days ahead.` };
+    }
+    const valid = new Set(slotHoursForDay(settings, key));
+    for (const h of (group.hours || []).map((x) => Math.floor(x))) {
+      if (!valid.has(h)) {
+        return { ok: false, error: "One of those times isn't available on that day." };
+      }
+      const startMs = new Date(`${key}T${String(h).padStart(2, "0")}:00:00.000Z`).getTime();
+      if (startMs <= now.getTime()) {
+        return { ok: false, error: "One of those times has already started. Please refresh and pick again." };
+      }
+      const sk = `${key}:${h}`;
+      if (seen.has(sk)) continue;
+      seen.add(sk);
+      flat.push({ dateKey: key, hour: h });
     }
   }
-  const taken = await takenHoursForDay(key);
-  if (hours.some((h) => taken.has(h))) {
-    return { ok: false, error: "Sorry — one of those times was just taken. Please pick again." };
+  if (!flat.length) return { ok: false, error: "Please choose at least one time slot." };
+
+  // Availability check per distinct day (the unique [date,hour] index is the
+  // hard guarantee; this gives a friendlier message).
+  const days = [...new Set(flat.map((f) => f.dateKey))].sort();
+  for (const d of days) {
+    const taken = await takenHoursForDay(d);
+    if (flat.some((f) => f.dateKey === d && taken.has(f.hour))) {
+      return { ok: false, error: "Sorry — one of those times was just taken. Please pick again." };
+    }
   }
 
   // Coupon (optional). A typed-but-invalid code blocks so the customer notices.
   const { coupon, error: couponErr } = await findUsableCoupon(input.couponCode || "", now);
   if (input.couponCode?.trim() && couponErr) return { ok: false, error: couponErr };
-  const price = priceFor(settings, hours.length, coupon);
+  const price = priceFor(settings, flat.length, coupon);
+  const isFree = price.total < STRIPE_MIN_PENCE;
+
+  if (!isFree && !stripeConfigured()) {
+    return { ok: false, error: "Online payment isn't available right now. Please try again later." };
+  }
 
   // Who is this for? Logged-in field client, a new account, or a guest.
   const current = await getCurrentUser();
@@ -223,12 +244,12 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
     });
     clientId = user.id;
     wantSaveCard = !!input.saveCard;
-    // Log them in so they land in their account after paying.
+    // Log them in so they land in their account after booking.
     await createSession({ uid: user.id, role: user.role, name: user.name });
   }
 
-  const reference = makeReference(key);
-  const dateMid = atUtcMidnight(key);
+  const earliestKey = days[0];
+  const reference = makeReference(earliestKey);
 
   // Reserve the slots (unique [date,hour] blocks any concurrent double-book).
   let bookingId: string;
@@ -241,7 +262,7 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
           name,
           email,
           phone,
-          date: dateMid,
+          date: atUtcMidnight(earliestKey),
           slotPrice: price.slotPrice,
           numSlots: price.numSlots,
           subtotal: price.subtotal,
@@ -252,9 +273,9 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
         },
       });
       await tx.fieldSlot.createMany({
-        data: hours.map((h) => ({
-          date: dateMid,
-          hour: h,
+        data: flat.map((f) => ({
+          date: atUtcMidnight(f.dateKey),
+          hour: f.hour,
           kind: FIELD_SLOT_KIND.BOOKING,
           bookingId: b.id,
         })),
@@ -266,14 +287,24 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
     return { ok: false, error: "Sorry — one of those times was just taken. Please pick again." };
   }
 
-  // Open the PaymentIntent.
+  // Nothing to pay (full discount): confirm now + send the email, no Stripe.
+  if (isFree) {
+    try {
+      await finalizeFieldBookingPaid(bookingId, null);
+    } catch {
+      /* email is best-effort; the booking is already reserved + confirmed */
+    }
+    return { ok: true, free: true, reference };
+  }
+
+  // Otherwise open the PaymentIntent (card entered + confirmed on the page).
   try {
     let customerId: string | null = null;
     if (clientId && wantSaveCard) customerId = await ensureCustomer(clientId);
 
     const intent = await createFieldPaymentIntent({
       amount: price.total,
-      description: `Playground hire — ${reference} (${hours.length} × 1hr)`,
+      description: `Playground hire — ${reference} (${flat.length} × 1hr)`,
       metadata: { fieldBookingId: bookingId, reference },
       customerId,
       saveCard: wantSaveCard,
@@ -287,12 +318,7 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
       data: { stripePaymentIntentId: intent.id },
     });
 
-    return {
-      ok: true,
-      clientSecret: intent.client_secret,
-      reference,
-      total: price.total,
-    };
+    return { ok: true, free: false, clientSecret: intent.client_secret, reference, total: price.total };
   } catch {
     // Roll back the reservation so the slots free up again.
     await prisma.fieldBooking.delete({ where: { id: bookingId } }).catch(() => {});
