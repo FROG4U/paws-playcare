@@ -9,8 +9,9 @@ import { bankHolidayKeys, checkBookable, expandRecurring } from "@/lib/availabil
 import { atUtcMidnight, dayKey, formatDate } from "@/lib/dates";
 import { notify, notifyAdmins } from "@/lib/notifications";
 
-// How far ahead an open-ended ("repeat ongoing") booking generates walks now.
-// (A periodic top-up job would extend it further — a later addition.)
+// How far ahead an open-ended ("repeat ongoing") booking generates walks up
+// front. The daily maintenance cron (lib/rollover.ts) then keeps topping every
+// ongoing booking back up to this horizon, so it rolls on forever until paused.
 const ONGOING_HORIZON_DAYS = 12 * 7;
 
 export type BookInput = {

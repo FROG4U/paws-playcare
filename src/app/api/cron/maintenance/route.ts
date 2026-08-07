@@ -1,6 +1,7 @@
 import { cronAuthorized } from "@/lib/cron-auth";
 import { warnExpiringCards, blockOverdueClients, remindClientsWithoutCard } from "@/lib/billing-run";
 import { releaseStaleFieldHolds } from "@/lib/field";
+import { rolloverOngoingBookings } from "@/lib/rollover";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,8 @@ async function run(req: Request) {
   const noCard = await remindClientsWithoutCard(now);
   const blocks = await blockOverdueClients(now);
   const releasedFieldHolds = await releaseStaleFieldHolds(now);
-  return Response.json({ ok: true, ...cards, ...noCard, ...blocks, releasedFieldHolds });
+  const rolled = await rolloverOngoingBookings(now);
+  return Response.json({ ok: true, ...cards, ...noCard, ...blocks, releasedFieldHolds, ...rolled });
 }
 
 export const GET = run;
