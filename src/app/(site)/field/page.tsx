@@ -24,7 +24,9 @@ export default async function FieldPage() {
   ]);
 
   const fieldClient =
-    user?.role === ROLES.FIELD_CLIENT ? { name: user.name, email: user.email } : null;
+    user?.role === ROLES.FIELD_CLIENT
+      ? { name: user.name, email: user.email, phone: user.phone ?? "", carReg: user.carReg ?? "" }
+      : null;
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
 
   return (

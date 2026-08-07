@@ -15,11 +15,12 @@ export async function updateFieldProfile(
   const user = await requireRole([ROLES.FIELD_CLIENT]);
   const name = String(formData.get("name") || "").trim();
   const phone = String(formData.get("phone") || "").trim() || null;
+  const carReg = String(formData.get("carReg") || "").trim().toUpperCase() || null;
   if (!name) return { error: "Please enter your name." };
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { name, phone },
+    data: { name, phone, carReg },
   });
   revalidatePath("/field-account");
   return { ok: true };

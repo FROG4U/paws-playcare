@@ -75,6 +75,8 @@ model User {
   // Admin block on a FIELD_CLIENT (separate from dog-client SUSPENDED status).
   fieldBlockedAt  DateTime?
   fieldBlockReason String?
+  // Saved vehicle registration for field customers (prefilled at checkout).
+  carReg          String?
 }
 
 // ---------------------------------------------------------------------------
@@ -451,9 +453,10 @@ model FieldBooking {
 
   // Contact snapshot — always stored (even for account holders) so history and
   // the confirmation email are self-contained.
-  name  String
-  email String
-  phone String?
+  name   String
+  email  String
+  phone  String?
+  carReg String? // vehicle registration — required at checkout (gate/parking)
 
   date  DateTime // the booked day (UTC midnight)
   slots FieldSlot[]

@@ -51,7 +51,7 @@ function List({
   spendMap,
 }: {
   users: {
-    id: string; name: string; email: string; phone: string | null; createdAt: Date;
+    id: string; name: string; email: string; phone: string | null; carReg: string | null; createdAt: Date;
     fieldBlockedAt: Date | null; fieldBlockReason: string | null; archivedAt: Date | null;
     _count: { fieldBookings: number };
   }[];
@@ -69,7 +69,9 @@ function List({
               {u.name}
               {u.fieldBlockedAt && <span className="badge ml-2 bg-danger/15 text-danger">Blocked</span>}
             </p>
-            <p className="text-sm text-muted">{u.email}{u.phone ? ` · ${u.phone}` : ""}</p>
+            <p className="text-sm text-muted">
+              {u.email}{u.phone ? ` · ${u.phone}` : ""}{u.carReg ? ` · 🚗 ${u.carReg}` : ""}
+            </p>
             <p className="mt-0.5 text-xs text-muted">
               {u._count.fieldBookings} booking{u._count.fieldBookings === 1 ? "" : "s"} ·{" "}
               {formatMoney(spendMap.get(u.id) ?? 0)} spent · joined {formatDate(u.createdAt)}

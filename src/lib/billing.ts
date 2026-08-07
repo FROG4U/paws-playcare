@@ -114,16 +114,26 @@ async function dogLabelFor(walk: {
   return `${walk.numDogs} dog${walk.numDogs > 1 ? "s" : ""}`;
 }
 
-// Readable, unique-ish invoice number: INV-YYYYMMDD-XXXX (period end + random).
-async function generateInvoiceNumber(end: Date): Promise<string> {
-  const base = `INV-${dayKey(end).replace(/-/g, "")}`;
-  for (let i = 0; i < 8; i++) {
-    const suffix = Math.floor(1000 + Math.random() * 9000);
-    const number = `${base}-${suffix}`;
-    const clash = await prisma.invoice.findUnique({ where: { number } });
-    if (!clash) return number;
+// Sequential invoice number: PPC100, PPC101, PPC102 … Counts up from the
+// highest existing PPC number (starting at PPC100). The unique constraint on
+// Invoice.number guards against a rare concurrent clash, so we retry.
+async function generateInvoiceNumber(_end: Date): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const existing = await prisma.invoice.findMany({
+      where: { number: { startsWith: "PPC" } },
+      select: { number: true },
+    });
+    let max = 99; // so the first invoice is PPC100
+    for (const { number } of existing) {
+      const m = /^PPC(\d+)$/.exec(number);
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    const candidate = `PPC${max + 1}`;
+    const clash = await prisma.invoice.findUnique({ where: { number: candidate } });
+    if (!clash) return candidate;
   }
-  return `${base}-${Date.now().toString(36).slice(-5).toUpperCase()}`;
+  // Extreme-concurrency fallback — still PPC-prefixed and unique.
+  return `PPC${Date.now().toString().slice(-6)}`;
 }
 
 async function recomputeTotals(invoiceId: string): Promise<void> {

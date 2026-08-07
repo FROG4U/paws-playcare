@@ -47,7 +47,7 @@ function slotLabel(h: number) {
   return `${hhmm(h)} – ${hhmm(h + 1)}`;
 }
 
-type FieldClient = { name: string; email: string } | null;
+type FieldClient = { name: string; email: string; phone?: string; carReg?: string } | null;
 type Hours = { open: number; close: number };
 
 export function FieldBooking({
@@ -80,7 +80,8 @@ export function FieldBooking({
 
   const [name, setName] = useState(fieldClient?.name ?? "");
   const [email, setEmail] = useState(fieldClient?.email ?? "");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(fieldClient?.phone ?? "");
+  const [carReg, setCarReg] = useState(fieldClient?.carReg ?? "");
   const [createAccount, setCreateAccount] = useState(false);
   const [password, setPassword] = useState("");
   const [saveCard, setSaveCard] = useState(false);
@@ -193,11 +194,13 @@ export function FieldBooking({
   }, [coupon, totalSlots]);
 
   const phoneOk = phone.replace(/[^0-9]/g, "").length >= 7;
+  const carRegOk = carReg.replace(/[^a-zA-Z0-9]/g, "").length >= 2;
   const canSubmit =
     totalSlots > 0 &&
     !!name.trim() &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
     phoneOk &&
+    carRegOk &&
     (!createAccount || password.length >= 8) &&
     (willBeFree || payEnabled);
 
@@ -209,6 +212,7 @@ export function FieldBooking({
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim(),
+      carReg: carReg.trim(),
       couponCode: coupon.trim() || undefined,
       createAccount: !fieldClient && createAccount,
       password: createAccount ? password : undefined,
@@ -421,7 +425,19 @@ export function FieldBooking({
             <Field label="Phone" required>
               <input className="input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" placeholder="e.g. 07725 176012" />
             </Field>
+            <Field label="Car registration" required>
+              <input
+                className="input uppercase"
+                value={carReg}
+                onChange={(e) => setCarReg(e.target.value.toUpperCase())}
+                placeholder="e.g. AB12 CDE"
+                maxLength={10}
+              />
+            </Field>
           </div>
+          <p className="-mt-2 text-xs text-muted">
+            We ask for your car registration so we know who&apos;s using the playground and parking.
+          </p>
 
           {!fieldClient && (
             <label className="flex items-start gap-2 text-sm">

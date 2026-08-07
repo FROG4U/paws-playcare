@@ -126,6 +126,7 @@ export type StartInput = {
   name: string;
   email: string;
   phone: string; // required
+  carReg: string; // required — vehicle registration
   couponCode?: string;
   createAccount?: boolean;
   password?: string;
@@ -153,11 +154,15 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
   const name = String(input.name || "").trim();
   const email = String(input.email || "").trim().toLowerCase();
   const phone = String(input.phone || "").trim();
+  const carReg = String(input.carReg || "").trim().toUpperCase();
 
   if (!name) return { ok: false, error: "Please enter your name." };
   if (!EMAIL_RE.test(email)) return { ok: false, error: "Please enter a valid email address." };
   if (phone.replace(/[^0-9]/g, "").length < 7) {
     return { ok: false, error: "Please enter a valid phone number." };
+  }
+  if (carReg.replace(/[^A-Z0-9]/g, "").length < 2) {
+    return { ok: false, error: "Please enter your car registration." };
   }
 
   const settings = await getFieldSettings();
@@ -222,6 +227,11 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
     }
     clientId = current.id;
     wantSaveCard = !!input.saveCard;
+    // Keep their saved profile current with what they entered.
+    await prisma.user.update({
+      where: { id: current.id },
+      data: { phone, carReg },
+    });
   } else if (input.createAccount) {
     const password = String(input.password || "");
     if (password.length < 8) {
@@ -236,6 +246,7 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
         email,
         name,
         phone,
+        carReg,
         passwordHash: await hashPassword(password),
         role: ROLES.FIELD_CLIENT,
         status: USER_STATUS.ACTIVE,
@@ -262,6 +273,7 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
           name,
           email,
           phone,
+          carReg,
           date: atUtcMidnight(earliestKey),
           slotPrice: price.slotPrice,
           numSlots: price.numSlots,

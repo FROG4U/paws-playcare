@@ -76,6 +76,7 @@ function Section({ title, rows, cancellable }: { title: string; rows: Row[]; can
                   <p className="text-sm text-muted">
                     {b.name} · {b.email}
                     {b.phone ? ` · ${b.phone}` : ""}
+                    {b.carReg ? ` · 🚗 ${b.carReg}` : ""}
                   </p>
                   <p className="mt-0.5 text-xs text-muted">
                     Ref {b.reference} ·{" "}
