@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { WALK_STATUS } from "@/lib/constants";
+import { WALK_STATUS, PAY_CADENCE } from "@/lib/constants";
 import { formatDate, dayKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
+import { billingPeriodFor } from "@/lib/billing";
 import { getServices } from "@/lib/services";
 import { serviceColorMap } from "@/lib/service-colors";
 import { PageHeader, EmptyState } from "@/components/ui";
@@ -17,12 +18,41 @@ function bookingStatusLabel(b: { reviewedAt: Date | null; decision: string | nul
   return "Reviewed";
 }
 
+const CADENCE_UNIT: Record<string, string> = {
+  [PAY_CADENCE.DAILY]: "day",
+  [PAY_CADENCE.WEEKLY]: "week",
+  [PAY_CADENCE.MONTHLY]: "month",
+};
+const CADENCE_ADVERB: Record<string, string> = {
+  [PAY_CADENCE.DAILY]: "daily",
+  [PAY_CADENCE.WEEKLY]: "weekly",
+  [PAY_CADENCE.MONTHLY]: "monthly",
+};
+
+// How this booking bills under the client's pay cadence: the amount for one
+// full billing period (a typical week/month/day), not the whole schedule total.
+// The card shows this instead of the misleading multi-week lump sum.
+function perCycleCharge(
+  cadence: string,
+  walks: { date: Date; price: number }[]
+): { perCycle: number; periods: number } {
+  const buckets = new Map<string, number>();
+  for (const w of walks) {
+    const key = dayKey(billingPeriodFor(cadence, w.date).start);
+    buckets.set(key, (buckets.get(key) ?? 0) + w.price);
+  }
+  // Use the largest full period as the representative charge (the last period
+  // can be short if the schedule ends mid-week).
+  const perCycle = buckets.size ? Math.max(...buckets.values()) : 0;
+  return { perCycle, periods: buckets.size };
+}
+
 export default async function NewBookingsPage() {
   const [bookings, allBookings, services] = await Promise.all([
     prisma.booking.findMany({
       where: { reviewedAt: null, status: "ACTIVE" },
       include: {
-        client: { select: { name: true, email: true, phone: true } },
+        client: { select: { name: true, email: true, phone: true, payCadence: true } },
         walks: { orderBy: { date: "asc" } },
       },
       orderBy: { createdAt: "asc" },
@@ -61,6 +91,9 @@ export default async function NewBookingsPage() {
         {bookings.map((b) => {
           const activeWalks = b.walks.filter((w) => w.status !== WALK_STATUS.CANCELLED);
           const total = activeWalks.reduce((sum, w) => sum + w.price, 0);
+          const cadence = b.client.payCadence;
+          const recurring = b.type === "RECURRING";
+          const { perCycle, periods } = perCycleCharge(cadence, activeWalks);
           const walkLites: WalkLite[] = b.walks.map((w) => ({
             id: w.id,
             dateIso: dayKey(w.date),
@@ -86,10 +119,26 @@ export default async function NewBookingsPage() {
                   <p className="mt-0.5 text-xs text-muted">Requested {formatDate(b.createdAt)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-extrabold">{formatMoney(total)}</p>
-                  <p className="text-xs text-muted">
-                    {activeWalks.length} walk{activeWalks.length !== 1 ? "s" : ""}
-                  </p>
+                  {recurring ? (
+                    <>
+                      <p className="text-lg font-extrabold">
+                        {formatMoney(perCycle)}
+                        <span className="text-sm font-semibold text-muted"> / {CADENCE_UNIT[cadence] ?? "week"}</span>
+                      </p>
+                      <p className="text-xs text-muted">
+                        billed {CADENCE_ADVERB[cadence] ?? "weekly"} · {activeWalks.length} walk
+                        {activeWalks.length !== 1 ? "s" : ""} over {periods}{" "}
+                        {CADENCE_UNIT[cadence] ?? "week"}{periods !== 1 ? "s" : ""}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-extrabold">{formatMoney(total)}</p>
+                      <p className="text-xs text-muted">
+                        {activeWalks.length} walk{activeWalks.length !== 1 ? "s" : ""}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
