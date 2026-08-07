@@ -4,6 +4,9 @@ export const ROLES = {
   ADMIN: "ADMIN",
   WORKER: "WORKER",
   CLIENT: "CLIENT",
+  // Field/playground-hire customer. A separate product from dog walking, so it
+  // gets its own dashboard (/field-account) while sharing the header login.
+  FIELD_CLIENT: "FIELD_CLIENT",
 } as const;
 export type Role = (typeof ROLES)[keyof typeof ROLES];
 
@@ -118,6 +121,37 @@ export const NOTIF_TYPE = {
   ACCOUNT_SUSPENDED: "ACCOUNT_SUSPENDED",
   ADD_CARD: "ADD_CARD",
   CONTACT_MESSAGE: "CONTACT_MESSAGE",
+  FIELD_BOOKING_PAID: "FIELD_BOOKING_PAID", // a field/playground booking was paid (notify admins)
+} as const;
+
+// ---------------------------------------------------------------------------
+// Field / playground hire (separate product from dog walking)
+// ---------------------------------------------------------------------------
+export const FIELD_BOOKING_STATUS = {
+  PENDING: "PENDING", // slots reserved, awaiting payment
+  PAID: "PAID",
+  CANCELLED: "CANCELLED",
+  FAILED: "FAILED",
+} as const;
+
+// A field slot row either represents a paid/pending customer booking or an
+// admin block-out. The @@unique([date,hour]) constraint means an hour can only
+// ever hold one of these — which is exactly how we stop double-booking.
+export const FIELD_SLOT_KIND = {
+  BOOKING: "BOOKING",
+  BLOCK: "BLOCK",
+} as const;
+
+export const FIELD_COUPON_TYPE = {
+  PERCENT: "PERCENT",
+  FIXED: "FIXED",
+} as const;
+
+// How the summer/winter opening hours are decided.
+export const FIELD_SEASON_MODE = {
+  AUTO: "AUTO", // British Summer Time = summer hours, GMT = winter hours
+  ALWAYS_SUMMER: "ALWAYS_SUMMER",
+  ALWAYS_WINTER: "ALWAYS_WINTER",
 } as const;
 
 // A user can be assigned walks if they are an admin or an active worker.

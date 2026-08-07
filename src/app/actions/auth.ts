@@ -38,6 +38,8 @@ export async function loginAction(
       ? "/admin"
       : user.role === ROLES.WORKER
       ? "/worker"
+      : user.role === ROLES.FIELD_CLIENT
+      ? "/field-account"
       : "/client";
   redirect(dest);
 }

@@ -4,7 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./Icon";
 
-export type NavItem = { href: string; label: string; icon: string; badge?: number };
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  badge?: number;
+  // Optional group heading. When an item's section differs from the previous
+  // item's, the sidebar renders a small divider label above it.
+  section?: string;
+};
 
 function useActive() {
   const pathname = usePathname();
@@ -16,13 +24,21 @@ function useActive() {
 
 export function SideNav({ items }: { items: NavItem[] }) {
   const isActive = useActive();
+  let lastSection: string | undefined;
   return (
     <nav className="space-y-0.5">
       {items.map((it) => {
         const active = isActive(it.href);
+        const showSection = it.section && it.section !== lastSection;
+        lastSection = it.section ?? lastSection;
         return (
+          <div key={it.href}>
+            {showSection && (
+              <p className="px-3 pb-1 pt-4 text-[0.6rem] font-bold uppercase tracking-wider text-muted/60">
+                {it.section}
+              </p>
+            )}
           <Link
-            key={it.href}
             href={it.href}
             aria-current={active ? "page" : undefined}
             className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.9rem] font-medium transition ${
@@ -48,6 +64,7 @@ export function SideNav({ items }: { items: NavItem[] }) {
               </span>
             ) : null}
           </Link>
+          </div>
         );
       })}
     </nav>

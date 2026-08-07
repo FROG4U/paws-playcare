@@ -81,6 +81,33 @@ export async function saveCardFromSetupIntent(
   return pm;
 }
 
+// One-off, on-session PaymentIntent for a field/playground booking. The
+// customer enters their card on the page (Stripe PaymentElement) and confirms
+// it there. `customerId` + `saveCard` opt the account holder into saving the
+// card for future off-session use; guests pass neither.
+export async function createFieldPaymentIntent(params: {
+  amount: number;
+  description: string;
+  metadata: Record<string, string>;
+  customerId?: string | null;
+  saveCard?: boolean;
+  receiptEmail?: string;
+}) {
+  const stripe = getStripe();
+  return stripe.paymentIntents.create({
+    amount: params.amount,
+    currency: "gbp",
+    description: params.description,
+    metadata: params.metadata,
+    automatic_payment_methods: { enabled: true },
+    ...(params.customerId ? { customer: params.customerId } : {}),
+    ...(params.saveCard && params.customerId
+      ? { setup_future_usage: "off_session" as const }
+      : {}),
+    ...(params.receiptEmail ? { receipt_email: params.receiptEmail } : {}),
+  });
+}
+
 // Charge an amount (pence) off-session against the client's saved card.
 export async function chargeOffSession(params: {
   userId: string;

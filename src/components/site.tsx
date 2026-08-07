@@ -16,6 +16,8 @@ export async function SiteHeader() {
       ? "/worker"
       : session?.role === ROLES.CLIENT
       ? "/client"
+      : session?.role === ROLES.FIELD_CLIENT
+      ? "/field-account"
       : null;
 
   const items: SiteNavItem[] = [
@@ -23,6 +25,7 @@ export async function SiteHeader() {
       href: p.slug === "home" ? "/" : `/${p.slug}`,
       label: p.navLabel,
     })),
+    { href: "/field", label: "Book the Field" },
     { href: "/online-booking-form", label: "Booking Form" },
   ];
 

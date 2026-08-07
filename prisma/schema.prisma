@@ -67,6 +67,14 @@ model User {
   earnings        Earning[]
   notifications   Notification[]
   changeRequests  ChangeRequest[]  @relation("RequestedBy")
+
+  // Field/playground-hire bookings (role FIELD_CLIENT). Nullable link so a
+  // booking survives if the account is later deleted (kept as guest history).
+  fieldBookings   FieldBooking[]   @relation("FieldClientBookings")
+
+  // Admin block on a FIELD_CLIENT (separate from dog-client SUSPENDED status).
+  fieldBlockedAt  DateTime?
+  fieldBlockReason String?
 }
 
 // ---------------------------------------------------------------------------
@@ -398,6 +406,103 @@ model WorkerInvite {
   expiresAt   DateTime
   usedAt      DateTime?
   usedByUserId String?
+}
+
+// ---------------------------------------------------------------------------
+// Field / playground hire — a fully-automated, pay-online product separate
+// from dog walking. Customers book hourly slots (£15 each), pay by card, and
+// receive the gate/padlock access codes by email. No admin approval.
+// ---------------------------------------------------------------------------
+
+// Singleton settings row (id always 1). Opening hours switch between summer
+// (British Summer Time) and winter (GMT) automatically — see lib/field.ts.
+model FieldSetting {
+  id        Int    @id @default(1)
+  slotPrice Int    @default(1500) // £15.00 per one-hour slot
+  currency  String @default("gbp")
+
+  seasonMode      String @default("AUTO") // AUTO | ALWAYS_SUMMER | ALWAYS_WINTER
+  winterOpenHour  Int    @default(8)  // 08:00
+  winterCloseHour Int    @default(16) // last slot ends 16:00 (last start 15:00)
+  summerOpenHour  Int    @default(6)  // 06:00
+  summerCloseHour Int    @default(20) // last slot ends 20:00 (last start 19:00)
+  maxAdvanceDays  Int    @default(60) // how far ahead the calendar opens
+
+  // Access + location details injected into the confirmation email.
+  gatePin      String @default("362211")
+  padlockCode  String @default("1212")
+  postcode     String @default("HP2 6HN")
+  locationNote String @default("follow the map on the location page — we are right at the end of Cupid Green Lane, inside Bury Farm.")
+  serviceName  String @default("Playground hire")
+  providerName String @default("Kitty")
+  companyName  String @default("Paws Playcare")
+  contactPhone String @default("07725 176012")
+
+  updatedAt DateTime @updatedAt
+}
+
+model FieldBooking {
+  id        String  @id @default(cuid())
+  reference String  @unique // e.g. FB-20260810-4821
+
+  // Account holder (role FIELD_CLIENT) or null for a guest checkout.
+  clientId String?
+  client   User?   @relation("FieldClientBookings", fields: [clientId], references: [id], onDelete: SetNull)
+
+  // Contact snapshot — always stored (even for account holders) so history and
+  // the confirmation email are self-contained.
+  name  String
+  email String
+  phone String?
+
+  date  DateTime // the booked day (UTC midnight)
+  slots FieldSlot[]
+
+  // Pricing (integer pence)
+  slotPrice  Int     @default(1500)
+  numSlots   Int     @default(1)
+  subtotal   Int     @default(0)
+  discount   Int     @default(0)
+  total      Int     @default(0)
+  couponCode String?
+
+  status                String    @default("PENDING") // PENDING | PAID | CANCELLED | FAILED
+  paidAt                DateTime?
+  stripePaymentIntentId String?
+  emailSentAt           DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One row per booked (or admin-blocked) hour. The unique (date,hour) pair is
+// the availability source of truth and prevents any double-booking.
+model FieldSlot {
+  id   String   @id @default(cuid())
+  date DateTime // UTC midnight of the day
+  hour Int      // slot start hour, 0–23 (e.g. 8 = 08:00–09:00)
+
+  kind      String  @default("BOOKING") // BOOKING | BLOCK
+  bookingId String?
+  booking   FieldBooking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  note      String? // for BLOCK rows (admin reason)
+  createdAt DateTime @default(now())
+
+  @@unique([date, hour])
+  @@index([date])
+}
+
+model FieldCoupon {
+  id        String    @id @default(cuid())
+  code      String    @unique // stored uppercased
+  type      String    @default("PERCENT") // PERCENT | FIXED
+  value     Int       // percent 1–100, or pence for FIXED
+  active    Boolean   @default(true)
+  maxUses   Int?      // null = unlimited
+  usedCount Int       @default(0)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
 }
 
 // ---------------------------------------------------------------------------

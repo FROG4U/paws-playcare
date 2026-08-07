@@ -19,18 +19,28 @@ export default async function AdminLayout({
 
   const items: NavItem[] = [
     { href: "/admin", label: "Home", icon: "home" },
-    { href: "/admin/new-bookings", label: "New Bookings", icon: "inbox", badge: newBookings },
-    { href: "/admin/calendar", label: "Calendar", icon: "calendar" },
-    { href: "/admin/approvals", label: "Approvals", icon: "check" },
-    { href: "/admin/bookings", label: "Bookings", icon: "clipboard" },
-    { href: "/admin/cancellations", label: "Cancellations", icon: "x", badge: pendingCancels },
-    { href: "/admin/clients", label: "Clients", icon: "users" },
-    { href: "/admin/workers", label: "Team", icon: "footprints" },
-    { href: "/admin/services", label: "Services", icon: "paw" },
-    { href: "/admin/pricing", label: "Pricing", icon: "tag" },
-    { href: "/admin/pages", label: "Pages", icon: "file" },
-    { href: "/admin/messages", label: "Messages", icon: "mail", badge: newMessages },
-    { href: "/admin/invoices", label: "Invoices", icon: "receipt" },
+
+    { href: "/admin/new-bookings", label: "New Bookings", icon: "inbox", badge: newBookings, section: "Dog Walking" },
+    { href: "/admin/calendar", label: "Calendar", icon: "calendar", section: "Dog Walking" },
+    { href: "/admin/approvals", label: "Approvals", icon: "check", section: "Dog Walking" },
+    { href: "/admin/bookings", label: "Bookings", icon: "clipboard", section: "Dog Walking" },
+    { href: "/admin/cancellations", label: "Cancellations", icon: "x", badge: pendingCancels, section: "Dog Walking" },
+    { href: "/admin/clients", label: "Clients", icon: "users", section: "Dog Walking" },
+    { href: "/admin/workers", label: "Team", icon: "footprints", section: "Dog Walking" },
+    { href: "/admin/services", label: "Services", icon: "paw", section: "Dog Walking" },
+    { href: "/admin/pricing", label: "Pricing", icon: "tag", section: "Dog Walking" },
+    { href: "/admin/invoices", label: "Invoices", icon: "receipt", section: "Dog Walking" },
+
+    { href: "/admin/field/bookings", label: "Field Bookings", icon: "calendar", section: "Field Booking" },
+    { href: "/admin/field/clients", label: "Field Clients", icon: "users", section: "Field Booking" },
+    { href: "/admin/field/coupons", label: "Coupons", icon: "tag", section: "Field Booking" },
+    { href: "/admin/field/blocks", label: "Blocked Times", icon: "x", section: "Field Booking" },
+    { href: "/admin/field/settings", label: "Field Settings", icon: "paw", section: "Field Booking" },
+
+    { href: "/admin/sales", label: "Sales", icon: "receipt", section: "Reports" },
+
+    { href: "/admin/pages", label: "Pages", icon: "file", section: "Website" },
+    { href: "/admin/messages", label: "Messages", icon: "mail", badge: newMessages, section: "Website" },
   ];
 
   return (

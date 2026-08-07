@@ -1,8 +1,9 @@
 import type Stripe from "stripe";
 import { getStripe, stripeConfigured } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
-import { INVOICE_STATUS, NOTIF_TYPE } from "@/lib/constants";
+import { INVOICE_STATUS, FIELD_BOOKING_STATUS, NOTIF_TYPE } from "@/lib/constants";
 import { notify } from "@/lib/notifications";
+import { markFieldBookingPaid } from "@/lib/field-run";
 import { formatMoney } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,23 @@ export async function POST(req: Request) {
     event.type === "payment_intent.payment_failed"
   ) {
     const pi = event.data.object as Stripe.PaymentIntent;
+
+    // Field / playground bookings (paid on the page, finalised here).
+    const fieldBookingId = pi.metadata?.fieldBookingId;
+    if (fieldBookingId) {
+      if (event.type === "payment_intent.succeeded") {
+        await markFieldBookingPaid(fieldBookingId, pi);
+      } else {
+        // Leave the slots reserved briefly so the customer can retry the same
+        // PaymentIntent; the stale-hold reaper frees them if they don't.
+        await prisma.fieldBooking.updateMany({
+          where: { id: fieldBookingId, status: FIELD_BOOKING_STATUS.PENDING },
+          data: { status: FIELD_BOOKING_STATUS.FAILED },
+        });
+      }
+      return Response.json({ received: true });
+    }
+
     const invoiceId = pi.metadata?.invoiceId;
     if (invoiceId) {
       const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
