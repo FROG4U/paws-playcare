@@ -38,8 +38,13 @@ model User {
   emergencyName     String?
   emergencyPhone    String?
   payCadence        String  @default("WEEKLY") // DAILY | WEEKLY | MONTHLY
-  servicesPaused    Boolean @default(false)    // client self-pause switch
+  servicesPaused    Boolean @default(false)    // (legacy) client self-pause switch
   notes             String?
+
+  // A client can't pause a committed plan themselves — they request it and an
+  // admin actions the pause. Set when the client asks, cleared when actioned.
+  pauseRequestedAt    DateTime?
+  pauseRequestReason  String?
 
   // Captured from the sign-up "booking requirements" (initial requested schedule)
   regStartDate      DateTime?

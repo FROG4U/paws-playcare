@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { USER_STATUS, WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, dayKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-import { PauseToggle } from "@/components/PauseToggle";
+import { RequestPauseButton } from "@/components/PauseToggle";
 import { EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 
@@ -13,25 +13,28 @@ export default async function ClientHome() {
   const hasCard = !!user.paymentMethodId;
   const todayKey = dayKey(new Date());
 
-  const upcoming = await prisma.walk.findMany({
-    where: {
-      clientId: user.id,
-      date: { gte: new Date(todayKey + "T00:00:00.000Z") },
-      status: {
-        in: [WALK_STATUS.REQUESTED, WALK_STATUS.ASSIGNED, WALK_STATUS.ACCEPTED],
+  const [upcoming, pausedBookings] = await Promise.all([
+    prisma.walk.findMany({
+      where: {
+        clientId: user.id,
+        date: { gte: new Date(todayKey + "T00:00:00.000Z") },
+        status: {
+          in: [WALK_STATUS.REQUESTED, WALK_STATUS.ASSIGNED, WALK_STATUS.ACCEPTED],
+        },
       },
-    },
-    include: { worker: true },
-    orderBy: { date: "asc" },
-    take: 10,
-  });
+      include: { worker: true },
+      orderBy: { date: "asc" },
+      take: 10,
+    }),
+    prisma.booking.count({ where: { clientId: user.id, status: "PAUSED" } }),
+  ]);
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold">Hi, {user.name.split(" ")[0]} 👋</h1>
         {user.status === USER_STATUS.ACTIVE && (
-          <PauseToggle paused={user.servicesPaused} />
+          <RequestPauseButton requested={!!user.pauseRequestedAt} />
         )}
       </div>
 
@@ -56,9 +59,15 @@ export default async function ClientHome() {
           </Link>
         </Banner>
       )}
-      {user.status === USER_STATUS.ACTIVE && user.servicesPaused && (
-        <Banner tone="warn" title="Walks paused">
-          You&apos;ve paused all walks. Resume any time to book again.
+      {user.status === USER_STATUS.ACTIVE && pausedBookings > 0 && (
+        <Banner tone="warn" title="Your walks are paused">
+          Your walks are currently paused. Get in touch when you&apos;d like us to resume them.
+        </Banner>
+      )}
+      {user.status === USER_STATUS.ACTIVE && pausedBookings === 0 && user.pauseRequestedAt && (
+        <Banner tone="brand" title="Pause requested">
+          We&apos;ve received your request to pause and will sort it out shortly. You can cancel the
+          request from the button above if you change your mind.
         </Banner>
       )}
 

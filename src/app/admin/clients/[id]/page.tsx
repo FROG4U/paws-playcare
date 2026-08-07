@@ -5,6 +5,7 @@ import { ROLES, USER_STATUS, BOOKING_SLOT_LABELS } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { Icon } from "@/components/Icon";
 import { ClientActions } from "./ClientActions";
+import { PauseControls } from "./PauseControls";
 import { PasswordReset } from "./PasswordReset";
 import { CadenceSelect } from "./CadenceSelect";
 
@@ -29,7 +30,10 @@ export default async function ClientDetailPage({
   });
   if (!client || client.role !== ROLES.CLIENT) notFound();
 
-  const lateCancels = await prisma.walk.count({ where: { clientId: id, lateCancelled: true } });
+  const [lateCancels, pausedBookings] = await Promise.all([
+    prisma.walk.count({ where: { clientId: id, lateCancelled: true } }),
+    prisma.booking.count({ where: { clientId: id, status: "PAUSED" } }),
+  ]);
   const archived = !!client.archivedAt;
   const hasCard = !!client.paymentMethodId;
   let regSlots: string[] = [];
@@ -71,6 +75,15 @@ export default async function ClientDetailPage({
         </div>
       </div>
 
+      {/* Pause request / paused state */}
+      <PauseControls
+        clientId={client.id}
+        requested={!!client.pauseRequestedAt}
+        reason={client.pauseRequestReason}
+        requestedAt={client.pauseRequestedAt ? formatDateTime(client.pauseRequestedAt) : null}
+        pausedCount={pausedBookings}
+      />
+
       {/* Snapshot counts */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat icon="paw" label="Dogs" value={client.dogs.length} />
@@ -89,7 +102,16 @@ export default async function ClientDetailPage({
         {client.status === USER_STATUS.SUSPENDED && client.suspendReason && (
           <Field label="On hold" value={client.suspendReason} />
         )}
-        <Field label="Self-paused" value={client.servicesPaused ? "Yes — walks paused" : "No"} />
+        <Field
+          label="Walks"
+          value={
+            pausedBookings > 0
+              ? "Paused"
+              : client.pauseRequestedAt
+              ? "Pause requested"
+              : "Active"
+          }
+        />
         <Field
           label="Card on file"
           value={hasCard ? `${client.cardBrand ?? "Card"} ···· ${client.cardLast4} · exp ${String(client.cardExpMonth).padStart(2, "0")}/${String(client.cardExpYear).slice(-2)}` : "No card"}

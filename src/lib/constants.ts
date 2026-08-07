@@ -122,6 +122,8 @@ export const NOTIF_TYPE = {
   ADD_CARD: "ADD_CARD",
   CONTACT_MESSAGE: "CONTACT_MESSAGE",
   FIELD_BOOKING_PAID: "FIELD_BOOKING_PAID", // a field/playground booking was paid (notify admins)
+  PAUSE_REQUESTED: "PAUSE_REQUESTED", // client asked an admin to pause their walks
+  PAUSE_RESOLVED: "PAUSE_RESOLVED",   // admin paused/declined (notify client)
 } as const;
 
 // ---------------------------------------------------------------------------

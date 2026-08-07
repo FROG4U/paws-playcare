@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole, hashPassword } from "@/lib/auth";
-import { ROLES, PAY_CADENCE } from "@/lib/constants";
+import { ROLES, PAY_CADENCE, BOOKING_STATUS, WALK_STATUS, NOTIF_TYPE } from "@/lib/constants";
+import { notify } from "@/lib/notifications";
+import { dayKey } from "@/lib/dates";
+import { rolloverOngoingBookings } from "@/lib/rollover";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -171,4 +174,80 @@ export async function deleteClient(id: string): Promise<Result> {
   }
   revalidatePath("/admin/clients");
   redirect("/admin/clients");
+}
+
+// ── Pause requests ──────────────────────────────────────────────────────────
+// A client can only request a pause; an admin actions it here.
+
+// Pause all of a client's walks: mark their active bookings PAUSED and cancel
+// every upcoming (not-yet-done) walk with no charge. Clears the request.
+export async function pauseClientWalks(clientId: string): Promise<Result> {
+  await requireRole([ROLES.ADMIN]);
+  const client = await prisma.user.findUnique({ where: { id: clientId }, select: { id: true } });
+  if (!client) return { ok: false, error: "Client not found." };
+
+  const todayStart = new Date(dayKey(new Date()) + "T00:00:00.000Z");
+  await prisma.$transaction([
+    prisma.booking.updateMany({
+      where: { clientId, status: BOOKING_STATUS.ACTIVE },
+      data: { status: BOOKING_STATUS.PAUSED },
+    }),
+    prisma.walk.updateMany({
+      where: {
+        clientId,
+        date: { gte: todayStart },
+        status: { notIn: [WALK_STATUS.COMPLETED, WALK_STATUS.CANCELLED] },
+      },
+      data: { status: WALK_STATUS.CANCELLED, cancelledAt: new Date(), cancelReason: "Walks paused", noCharge: true },
+    }),
+    prisma.user.update({ where: { id: clientId }, data: { pauseRequestedAt: null, pauseRequestReason: null } }),
+  ]);
+
+  await notify({
+    userId: clientId,
+    type: NOTIF_TYPE.PAUSE_RESOLVED,
+    title: "Your walks are paused",
+    body: "We've paused your walks and cancelled upcoming ones with no charge. Just let us know when you'd like to resume.",
+    link: "/client/walks",
+  });
+  refresh(clientId);
+  return { ok: true };
+}
+
+// Resume a paused client: reactivate their paused bookings and immediately
+// top ongoing ones back up to the 12-week horizon.
+export async function resumeClientWalks(clientId: string): Promise<Result> {
+  await requireRole([ROLES.ADMIN]);
+  await prisma.booking.updateMany({
+    where: { clientId, status: BOOKING_STATUS.PAUSED },
+    data: { status: BOOKING_STATUS.ACTIVE },
+  });
+  await rolloverOngoingBookings(new Date()); // idempotent refill of ongoing plans
+  await notify({
+    userId: clientId,
+    type: NOTIF_TYPE.PAUSE_RESOLVED,
+    title: "Your walks are back on",
+    body: "We've resumed your walks — your regular schedule is running again.",
+    link: "/client/walks",
+  });
+  refresh(clientId);
+  return { ok: true };
+}
+
+// Decline / clear a pending pause request without pausing anything.
+export async function dismissPauseRequest(clientId: string): Promise<Result> {
+  await requireRole([ROLES.ADMIN]);
+  await prisma.user.update({
+    where: { id: clientId },
+    data: { pauseRequestedAt: null, pauseRequestReason: null },
+  });
+  await notify({
+    userId: clientId,
+    type: NOTIF_TYPE.PAUSE_RESOLVED,
+    title: "About your pause request",
+    body: "We've looked at your pause request — please get in touch so we can sort out the details with you.",
+    link: "/client",
+  });
+  refresh(clientId);
+  return { ok: true };
 }
