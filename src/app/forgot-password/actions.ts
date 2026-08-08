@@ -32,9 +32,20 @@ export async function requestPasswordReset(_prev: ForgotState, formData: FormDat
       data: { tokenHash: sha256(raw), userId: user.id, expiresAt: new Date(Date.now() + TOKEN_TTL_MS) },
     });
     try {
-      await sendPasswordResetEmail(user.email, raw);
-    } catch {
-      // ignore send failures — don't leak state
+      const res = await sendPasswordResetEmail(user.email, raw);
+      // Don't leak state to the user, but DO log so a broken live email setup
+      // (e.g. missing RESEND_API_KEY, or an address with no real inbox) is
+      // visible in the server logs instead of failing silently.
+      if (!res?.ok) {
+        console.error(
+          `[forgot-password] reset email NOT delivered to ${user.email}:`,
+          res?.skipped ? "skipped — RESEND_API_KEY not set" : res?.error
+        );
+      } else if (res?.skipped) {
+        console.error(`[forgot-password] reset email skipped for ${user.email} — RESEND_API_KEY not set`);
+      }
+    } catch (e) {
+      console.error(`[forgot-password] reset email threw for ${user.email}:`, e);
     }
   }
   return { done: true };
