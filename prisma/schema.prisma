@@ -495,10 +495,16 @@ model FieldSlot {
   booking   FieldBooking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   note      String? // for BLOCK rows (admin reason)
+  // For BLOCK rows: all slots created in one "Block these times" action share a
+  // group id, and blockRepeat records whether it was a repeating (weekday) block
+  // so the admin list can group + label them (Repeating vs one-off).
+  blockGroupId String?
+  blockRepeat  Boolean @default(false)
   createdAt DateTime @default(now())
 
   @@unique([date, hour])
   @@index([date])
+  @@index([blockGroupId])
 }
 
 model FieldCoupon {

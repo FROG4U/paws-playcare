@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { createBlock, removeBlock, removeBlocksForDay, type FormState } from "../actions";
+import { createBlock, removeBlock, removeBlocksForDay, removeBlockGroup, type FormState } from "../actions";
 
 const WEEKDAYS = [
   { v: 1, label: "Mon" },
@@ -201,6 +201,19 @@ export function ClearDayButton({ dateKey }: { dateKey: string }) {
       className="btn-ghost text-xs text-danger"
     >
       {pending ? "…" : "Clear day"}
+    </button>
+  );
+}
+
+export function RemoveSeriesButton({ groupId, repeat }: { groupId: string; repeat: boolean }) {
+  const [pending, start] = useTransition();
+  return (
+    <button
+      onClick={() => start(async () => { await removeBlockGroup(groupId); })}
+      disabled={pending}
+      className="btn-ghost text-xs text-danger"
+    >
+      {pending ? "…" : repeat ? "Remove series" : "Remove"}
     </button>
   );
 }

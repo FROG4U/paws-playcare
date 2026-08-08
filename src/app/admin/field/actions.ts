@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
@@ -212,11 +213,23 @@ export async function createBlock(_prev: FormState, fd: FormData): Promise<FormS
     return { error: "That covers too many slots at once — please narrow the range or times." };
   }
 
+  // All slots from this action share a group id so the list can show them as
+  // one entry, labelled Repeating (weekday repeat) or one-off.
+  const blockGroupId = randomUUID();
+  const blockRepeat = repeatDays.size > 0;
+
   let created = 0;
   for (const r of rows) {
     try {
       await prisma.fieldSlot.create({
-        data: { date: r.date, hour: r.hour, kind: FIELD_SLOT_KIND.BLOCK, note: r.note },
+        data: {
+          date: r.date,
+          hour: r.hour,
+          kind: FIELD_SLOT_KIND.BLOCK,
+          note: r.note,
+          blockGroupId,
+          blockRepeat,
+        },
       });
       created++;
     } catch {
@@ -233,6 +246,17 @@ export async function removeBlock(id: string) {
   await admin();
   // deleteMany lets us guard on kind so we never delete a real booking's slot.
   await prisma.fieldSlot.deleteMany({ where: { id, kind: FIELD_SLOT_KIND.BLOCK } });
+  revalidatePath("/admin/field/blocks");
+  revalidatePath("/field");
+}
+
+// Remove a whole block series (every slot created in one action).
+export async function removeBlockGroup(groupId: string) {
+  await admin();
+  if (!groupId) return;
+  await prisma.fieldSlot.deleteMany({
+    where: { blockGroupId: groupId, kind: FIELD_SLOT_KIND.BLOCK },
+  });
   revalidatePath("/admin/field/blocks");
   revalidatePath("/field");
 }
