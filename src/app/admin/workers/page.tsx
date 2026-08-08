@@ -4,6 +4,7 @@ import { formatDate } from "@/lib/dates";
 import { PageHeader } from "@/components/ui";
 import { createWorkerInvite } from "./actions";
 import { CopyLink, RevokeButton, WorkerActiveToggle } from "./InviteControls";
+import { StaffPassword } from "./StaffPassword";
 
 export default async function TeamPage() {
   const team = await prisma.user.findMany({
@@ -97,6 +98,9 @@ export default async function TeamPage() {
                     {m.email}
                     {m.phone ? ` · ${m.phone}` : ""}
                   </p>
+                  <div className="mt-1.5">
+                    <StaffPassword userId={m.id} name={m.name} />
+                  </div>
                 </div>
                 {!isAdmin && (
                   <WorkerActiveToggle userId={m.id} active={active} />
