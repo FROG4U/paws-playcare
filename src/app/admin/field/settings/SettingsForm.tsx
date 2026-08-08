@@ -5,7 +5,7 @@ import { saveFieldSettings, type FormState } from "../actions";
 import { penceToPounds } from "@/lib/money";
 import type { FieldSetting } from "@prisma/client";
 
-export function SettingsForm({ s }: { s: FieldSetting }) {
+export function SettingsForm({ s, terms }: { s: FieldSetting; terms: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveFieldSettings, {});
   return (
     <form action={action} className="space-y-6">
@@ -94,6 +94,15 @@ export function SettingsForm({ s }: { s: FieldSetting }) {
             <input name="contactPhone" defaultValue={s.contactPhone} className="input" />
           </Field>
         </div>
+      </section>
+
+      {/* Playground rules / T&Cs */}
+      <section className="card space-y-3">
+        <h2 className="font-bold">Playground rules &amp; T&amp;Cs</h2>
+        <p className="-mt-1 text-xs text-muted">
+          Shown at checkout — customers must tick to accept before booking. Acceptance is recorded on each booking.
+        </p>
+        <textarea name="playgroundTerms" defaultValue={terms} rows={8} className="input" />
       </section>
 
       <div className="flex items-center gap-3">

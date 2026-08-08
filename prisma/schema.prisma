@@ -445,6 +445,10 @@ model FieldSetting {
   companyName  String @default("Paws Playcare")
   contactPhone String @default("07725 176012")
 
+  // Playground rules / T&Cs the customer must accept at checkout. Empty falls
+  // back to DEFAULT_PLAYGROUND_TERMS (src/lib/field.ts).
+  playgroundTerms String @default("")
+
   updatedAt DateTime @updatedAt
 }
 
@@ -478,6 +482,7 @@ model FieldBooking {
   paidAt                DateTime?
   stripePaymentIntentId String?
   emailSentAt           DateTime?
+  termsAcceptedAt       DateTime? // customer ticked the playground rules / T&Cs
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

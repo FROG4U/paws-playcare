@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
-import { getFieldSettings } from "@/lib/field";
+import { getFieldSettings, effectiveTerms } from "@/lib/field";
 import { stripeConfigured } from "@/lib/stripe";
 import { PageHero } from "@/components/site";
 import { monthView } from "./actions";
@@ -60,6 +60,7 @@ export default async function FieldPage() {
           payEnabled={stripeConfigured() && !!publishableKey}
           fieldClient={fieldClient}
           prefill={prefill}
+          terms={effectiveTerms(settings)}
           seasonInfo={{
             summer: { open: settings.summerOpenHour, close: settings.summerCloseHour },
             winter: { open: settings.winterOpenHour, close: settings.winterCloseHour },

@@ -70,6 +70,21 @@ export function slotStartLabel(hour: number): string {
   return `${pad2(hour)}:00`;
 }
 
+// The playground rules / T&Cs a customer accepts at checkout. Admin can
+// override in Field Settings; this is the fallback when that's blank.
+export const DEFAULT_PLAYGROUND_TERMS = `Non refundable and not transferable except in extreme weather conditions. Please ensure you select the day and time carefully.
+
+Maximum of 16 dogs at any one time.
+One handler can have up to 8 dogs, two handlers for up to 16 dogs. 🐕
+
+Please pick up all mess, dog and human.
+Please report any mess or damages.`;
+
+// The terms to actually show/enforce (settings override, else the default).
+export function effectiveTerms(settings: FieldSetting): string {
+  return settings.playgroundTerms.trim() || DEFAULT_PLAYGROUND_TERMS;
+}
+
 // Get-or-create the singleton settings row.
 export async function getFieldSettings(): Promise<FieldSetting> {
   return prisma.fieldSetting.upsert({

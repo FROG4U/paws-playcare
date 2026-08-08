@@ -1,4 +1,4 @@
-import { getFieldSettings } from "@/lib/field";
+import { getFieldSettings, effectiveTerms } from "@/lib/field";
 import { SettingsForm } from "./SettingsForm";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export default async function FieldSettingsPage() {
         <h1 className="text-2xl font-extrabold">Field settings</h1>
         <p className="text-muted">Everything for the playground-hire product in one place.</p>
       </div>
-      <SettingsForm s={s} />
+      <SettingsForm s={s} terms={effectiveTerms(s)} />
     </div>
   );
 }

@@ -84,6 +84,7 @@ function Section({ title, rows, cancellable }: { title: string; rows: Row[]; can
                       {b.client ? "Account" : "Guest"}
                     </span>
                     {b.couponCode ? ` · ${b.couponCode}` : ""}
+                    {b.termsAcceptedAt ? " · T&Cs ✓" : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

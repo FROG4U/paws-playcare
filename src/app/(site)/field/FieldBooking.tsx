@@ -59,6 +59,7 @@ export function FieldBooking({
   payEnabled,
   fieldClient,
   prefill,
+  terms,
   seasonInfo,
 }: {
   initialYear: number;
@@ -69,6 +70,7 @@ export function FieldBooking({
   payEnabled: boolean;
   fieldClient: FieldClient;
   prefill?: FieldClient;
+  terms: string;
   seasonInfo: { summer: Hours; winter: Hours };
 }) {
   const router = useRouter();
@@ -91,6 +93,7 @@ export function FieldBooking({
   const [password, setPassword] = useState("");
   const [saveCard, setSaveCard] = useState(false);
 
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [coupon, setCoupon] = useState("");
   const [couponMsg, setCouponMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [discount, setDiscount] = useState(0);
@@ -206,6 +209,7 @@ export function FieldBooking({
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
     phoneOk &&
     carRegOk &&
+    acceptedTerms &&
     (!createAccount || password.length >= 8) &&
     (willBeFree || payEnabled);
 
@@ -218,6 +222,7 @@ export function FieldBooking({
       email: email.trim(),
       phone: phone.trim(),
       carReg: carReg.trim(),
+      acceptedTerms,
       couponCode: coupon.trim() || undefined,
       createAccount: !fieldClient && createAccount,
       password: createAccount ? password : undefined,
@@ -498,6 +503,25 @@ export function FieldBooking({
               <button onClick={applyCoupon} disabled={pending || !coupon.trim()} className="btn-outline">Apply</button>
             </div>
             {couponMsg && <p className={`mt-1 text-sm ${couponMsg.ok ? "text-success" : "text-danger"}`}>{couponMsg.text}</p>}
+          </div>
+
+          {/* Playground rules / T&Cs */}
+          <div>
+            <p className="mb-1 text-sm font-semibold">Playground rules &amp; T&amp;Cs</p>
+            <div className="max-h-36 overflow-y-auto whitespace-pre-line rounded-xl border border-border bg-mist px-3 py-2 text-sm text-muted">
+              {terms}
+            </div>
+            <label className="mt-2 flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                I have read and accept the playground rules &amp; terms. <span className="text-danger">*</span>
+              </span>
+            </label>
           </div>
 
           {/* Summary */}

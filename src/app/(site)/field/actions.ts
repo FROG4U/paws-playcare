@@ -127,6 +127,7 @@ export type StartInput = {
   email: string;
   phone: string; // required
   carReg: string; // required — vehicle registration
+  acceptedTerms: boolean; // must tick the playground rules / T&Cs
   couponCode?: string;
   createAccount?: boolean;
   password?: string;
@@ -163,6 +164,9 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
   }
   if (carReg.replace(/[^A-Z0-9]/g, "").length < 2) {
     return { ok: false, error: "Please enter your car registration." };
+  }
+  if (!input.acceptedTerms) {
+    return { ok: false, error: "Please tick to accept the playground rules & T&Cs." };
   }
 
   const settings = await getFieldSettings();
@@ -282,6 +286,7 @@ export async function startFieldBooking(input: StartInput): Promise<StartResult>
           total: price.total,
           couponCode: price.couponCode,
           status: FIELD_BOOKING_STATUS.PENDING,
+          termsAcceptedAt: now,
         },
       });
       await tx.fieldSlot.createMany({

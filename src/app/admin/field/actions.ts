@@ -71,6 +71,7 @@ export async function saveFieldSettings(
       providerName: str("providerName", cur.providerName),
       companyName: str("companyName", cur.companyName),
       contactPhone: str("contactPhone", cur.contactPhone),
+      playgroundTerms: str("playgroundTerms", cur.playgroundTerms),
     },
   });
   revalidatePath("/admin/field/settings");
