@@ -70,6 +70,22 @@ export async function completeWalk(walkId: string): Promise<Result> {
   return { ok: true };
 }
 
+// Complete several walks at once ("select all"). Each is added to the client's
+// invoice exactly like a single completion.
+export async function completeWalks(
+  ids: string[]
+): Promise<{ ok: true; completed: number; failed: number }> {
+  await requireRole([ROLES.ADMIN, ROLES.WORKER]);
+  let completed = 0;
+  let failed = 0;
+  for (const id of [...new Set(ids)].slice(0, 300)) {
+    const res = await completeWalk(id);
+    if (res.ok) completed++;
+    else failed++;
+  }
+  return { ok: true, completed, failed };
+}
+
 // Undo an accidental completion (same-day safety) — pulls it back off the
 // invoice, but only while that invoice is still open (not yet issued/charged).
 export async function undoComplete(walkId: string): Promise<Result> {
