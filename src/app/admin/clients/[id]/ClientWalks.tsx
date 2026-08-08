@@ -1,8 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
 import { updateWalkDetails } from "./actions";
+
+function monthLabel(ym: string): string {
+  return new Date(ym + "-01T00:00:00.000Z").toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 export type WalkLite = {
   id: string;
@@ -25,15 +33,51 @@ const SLOTS = [
 ];
 
 export function ClientWalks({ upcoming, past }: { upcoming: WalkLite[]; past: WalkLite[] }) {
+  // Distinct months (yyyy-mm) present in the upcoming walks, in order.
+  const months = useMemo(
+    () => [...new Set(upcoming.map((w) => w.dateIso.slice(0, 7)))].sort(),
+    [upcoming]
+  );
+  const [mi, setMi] = useState(0);
+  const currentYm = months[mi];
+  const monthWalks = currentYm ? upcoming.filter((w) => w.dateIso.slice(0, 7) === currentYm) : [];
+
   if (upcoming.length === 0 && past.length === 0) {
     return <p className="card text-sm text-muted">No walks for this client yet.</p>;
   }
+
   return (
     <div className="space-y-4">
-      {upcoming.length > 0 && (
+      {months.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">Upcoming ({upcoming.length})</p>
-          {upcoming.map((w) => <WalkRow key={w.id} w={w} />)}
+          {/* Month navigation */}
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted">
+              Upcoming · {upcoming.length} total
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setMi((i) => Math.max(0, i - 1))}
+                disabled={mi === 0}
+                className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted hover:bg-brand-soft disabled:opacity-30"
+                aria-label="Previous month"
+              >
+                ‹
+              </button>
+              <span className="min-w-[8.5rem] text-center text-sm font-bold">
+                {monthLabel(currentYm)} <span className="font-normal text-muted">· {monthWalks.length}</span>
+              </span>
+              <button
+                onClick={() => setMi((i) => Math.min(months.length - 1, i + 1))}
+                disabled={mi >= months.length - 1}
+                className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted hover:bg-brand-soft disabled:opacity-30"
+                aria-label="Next month"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+          {monthWalks.map((w) => <WalkRow key={w.id} w={w} />)}
         </div>
       )}
       {past.length > 0 && (
