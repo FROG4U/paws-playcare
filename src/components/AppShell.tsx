@@ -3,6 +3,7 @@ import { Logo } from "./Logo";
 import { Icon } from "./Icon";
 import { SideNav, BottomNav, type NavItem } from "./NavLink";
 import { InstallMenuButton } from "./pwa";
+import { MobileMenu } from "./MobileMenu";
 import { logoutAction } from "@/app/actions/auth";
 
 function initials(name: string) {
@@ -69,22 +70,14 @@ export function AppShell({
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur md:hidden">
-        <Logo />
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-surface/95 px-3 backdrop-blur md:hidden">
+        <div className="flex items-center gap-1">
+          <MobileMenu items={items} user={user} />
+          <Logo />
+        </div>
         <div className="flex items-center gap-1.5">
           <InstallMenuButton variant="chip" />
           <NotifBell unread={unread} href={notifHref} />
-          <form action={logoutAction}>
-            <button
-              className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-brand-soft"
-              aria-label="Log out"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <path d="M16 17l5-5-5-5M21 12H9" />
-              </svg>
-            </button>
-          </form>
         </div>
       </header>
 
