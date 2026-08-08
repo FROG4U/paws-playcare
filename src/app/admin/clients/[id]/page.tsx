@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { ROLES, USER_STATUS, BOOKING_SLOT_LABELS } from "@/lib/constants";
-import { formatDate, formatDateTime } from "@/lib/dates";
+import { ROLES, USER_STATUS, BOOKING_SLOT_LABELS, WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
+import { formatDate, formatDateTime, dayKey } from "@/lib/dates";
+import { penceToPounds } from "@/lib/money";
 import { Icon } from "@/components/Icon";
 import { ClientActions } from "./ClientActions";
 import { PauseControls } from "./PauseControls";
 import { PasswordReset } from "./PasswordReset";
 import { CadenceSelect } from "./CadenceSelect";
+import { ClientWalks, type WalkLite } from "./ClientWalks";
+
+const EDITABLE_WALK = [WALK_STATUS.REQUESTED, WALK_STATUS.ASSIGNED, WALK_STATUS.ACCEPTED] as string[];
 
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: "bg-success/15 text-success",
@@ -30,10 +34,35 @@ export default async function ClientDetailPage({
   });
   if (!client || client.role !== ROLES.CLIENT) notFound();
 
-  const [lateCancels, pausedBookings] = await Promise.all([
+  const [lateCancels, pausedBookings, walkRows] = await Promise.all([
     prisma.walk.count({ where: { clientId: id, lateCancelled: true } }),
     prisma.booking.count({ where: { clientId: id, status: "PAUSED" } }),
+    prisma.walk.findMany({
+      where: { clientId: id },
+      include: { worker: { select: { name: true } } },
+      orderBy: { date: "asc" },
+    }),
   ]);
+
+  const toLite = (w: (typeof walkRows)[number]): WalkLite => ({
+    id: w.id,
+    dateIso: dayKey(w.date),
+    dateLabel: formatDate(w.date),
+    timeSlot: w.timeSlot,
+    serviceName: w.serviceName,
+    numDogs: w.numDogs,
+    pricePounds: penceToPounds(w.price),
+    statusLabel: WALK_STATUS_LABELS[w.status] ?? w.status,
+    noCharge: w.noCharge,
+    workerName: w.worker?.name ?? null,
+    editable: EDITABLE_WALK.includes(w.status),
+  });
+  const upcomingWalks = walkRows.filter((w) => EDITABLE_WALK.includes(w.status)).map(toLite);
+  const pastWalks = walkRows
+    .filter((w) => !EDITABLE_WALK.includes(w.status))
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .slice(0, 12)
+    .map(toLite);
   const archived = !!client.archivedAt;
   const hasCard = !!client.paymentMethodId;
   let regSlots: string[] = [];
@@ -143,6 +172,15 @@ export default async function ClientDetailPage({
         />
         <Field label="Agreed to terms" value={client.agreedTermsAt ? formatDateTime(client.agreedTermsAt) : "Not recorded"} />
       </Section>
+
+      {/* Walks — editable */}
+      <div className="space-y-3">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <Icon name="calendar" className="h-5 w-5 text-brand" />
+          Walks
+        </h2>
+        <ClientWalks upcoming={upcomingWalks} past={pastWalks} />
+      </div>
 
       {/* Dogs */}
       <div className="space-y-3">

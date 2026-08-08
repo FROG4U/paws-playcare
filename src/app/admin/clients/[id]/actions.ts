@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole, hashPassword } from "@/lib/auth";
-import { ROLES, PAY_CADENCE, BOOKING_STATUS, WALK_STATUS, NOTIF_TYPE } from "@/lib/constants";
+import { ROLES, PAY_CADENCE, BOOKING_STATUS, WALK_STATUS, NOTIF_TYPE, TIME_SLOTS } from "@/lib/constants";
 import { notify } from "@/lib/notifications";
-import { dayKey } from "@/lib/dates";
+import { dayKey, atUtcMidnight } from "@/lib/dates";
+import { poundsToPence } from "@/lib/money";
 import { rolloverOngoingBookings } from "@/lib/rollover";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -174,6 +175,51 @@ export async function deleteClient(id: string): Promise<Result> {
   }
   revalidatePath("/admin/clients");
   redirect("/admin/clients");
+}
+
+// ── Walk details (edit from the client card) ────────────────────────────────
+// Edit an upcoming walk's date, time slot, price or no-charge flag. Completed
+// or cancelled walks are left alone (they may already be on an invoice).
+export async function updateWalkDetails(
+  walkId: string,
+  input: { dateIso?: string; timeSlot?: string; pricePounds?: string; noCharge?: boolean }
+): Promise<Result> {
+  await requireRole([ROLES.ADMIN]);
+  const walk = await prisma.walk.findUnique({
+    where: { id: walkId },
+    select: { status: true, clientId: true },
+  });
+  if (!walk) return { ok: false, error: "Walk not found." };
+  if (walk.status === WALK_STATUS.COMPLETED || walk.status === WALK_STATUS.CANCELLED) {
+    return { ok: false, error: "Only upcoming walks can be edited." };
+  }
+
+  const data: {
+    date?: Date;
+    timeSlot?: string;
+    price?: number;
+    noCharge?: boolean;
+  } = {};
+
+  if (input.dateIso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dateIso)) return { ok: false, error: "Invalid date." };
+    data.date = atUtcMidnight(input.dateIso);
+  }
+  if (input.timeSlot && (TIME_SLOTS as readonly string[]).includes(input.timeSlot)) {
+    data.timeSlot = input.timeSlot;
+  }
+  if (input.pricePounds != null && input.pricePounds !== "") {
+    const pence = poundsToPence(input.pricePounds);
+    if (pence < 0) return { ok: false, error: "Price can't be negative." };
+    data.price = pence;
+  }
+  if (typeof input.noCharge === "boolean") data.noCharge = input.noCharge;
+
+  if (Object.keys(data).length === 0) return { ok: false, error: "Nothing to update." };
+
+  await prisma.walk.update({ where: { id: walkId }, data });
+  refresh(walk.clientId);
+  return { ok: true };
 }
 
 // ── Pause requests ──────────────────────────────────────────────────────────
