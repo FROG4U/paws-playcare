@@ -405,15 +405,43 @@ export function FieldBooking({
         <div className="card space-y-4">
           {/* Selected sessions */}
           <div>
-            <h3 className="font-bold">Your sessions</h3>
-            <div className="mt-2 space-y-1.5">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="font-bold">Your sessions</h3>
+              <span className="text-sm text-muted">
+                {selectedEntries.length} day{selectedEntries.length > 1 ? "s" : ""} · {totalSlots} slot{totalSlots > 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="space-y-2">
               {selectedEntries.map(([dateKey, hrs]) => (
-                <div key={dateKey} className="flex items-start justify-between gap-3 rounded-lg bg-mist px-3 py-2 text-sm">
-                  <div>
-                    <span className="font-semibold">{shortDate(dateKey)}</span>{" "}
-                    <span className="text-muted">{hrs.map(slotLabel).join(", ")}</span>
+                <div
+                  key={dateKey}
+                  className="flex items-center gap-3 rounded-xl border border-brand/20 bg-brand-soft/40 px-3 py-2.5"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-brand shadow-sm">
+                    <Icon name="calendar" className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-brand-dark">{shortDate(dateKey)}</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {hrs.map((h) => (
+                        <span
+                          key={h}
+                          className="rounded-md bg-white px-1.5 py-0.5 text-[0.7rem] font-semibold text-muted"
+                        >
+                          {slotLabel(h)}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <button onClick={() => removeDay(dateKey)} className="shrink-0 text-xs font-semibold text-danger">Remove</button>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-extrabold text-brand-dark">{formatMoney(hrs.length * slotPrice)}</p>
+                    <button
+                      onClick={() => removeDay(dateKey)}
+                      className="mt-0.5 text-xs font-semibold text-danger hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
