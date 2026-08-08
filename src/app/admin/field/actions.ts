@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
-import { atUtcMidnight } from "@/lib/dates";
+import { atUtcMidnight, dayKey, isoWeekday } from "@/lib/dates";
 import { getFieldSettings, slotHoursForDay } from "@/lib/field";
 import {
   ROLES,
@@ -131,43 +131,75 @@ export async function deleteCoupon(id: string) {
 }
 
 // ---- Calendar blocks -------------------------------------------------------
-// Block out hours so customers can't book them (maintenance, private events…).
-// "whole" blocks every slot that day; otherwise the chosen hours only. Hours
-// already booked are skipped (can't block a paid slot).
+// Block out hours so customers can't book them (maintenance, private events,
+// holidays…). Supports a single day OR a date range, optionally repeating on
+// chosen weekdays, for the whole day OR a time range. Each matching hour that
+// isn't already booked/blocked becomes a BLOCK slot. Already-booked hours are
+// left alone.
+const RANGE_DAY_CAP = 400; // guard against runaway ranges
+const SLOT_CAP = 1500; // max block slots created in one go
+
 export async function createBlock(_prev: FormState, fd: FormData): Promise<FormState> {
   await admin();
-  const dateKey = String(fd.get("date") || "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return { error: "Please choose a date." };
+
+  const fromKey = String(fd.get("fromDate") || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromKey)) return { error: "Please choose a start date." };
+  const toRaw = String(fd.get("toDate") || "").trim();
+  const toKey = /^\d{4}-\d{2}-\d{2}$/.test(toRaw) ? toRaw : fromKey;
+  if (toKey < fromKey) return { error: "The end date must be on or after the start date." };
+
+  // Optional weekday repeat (ISO Mon=1 … Sun=7). Empty = every day in the range.
+  const repeatDays = new Set(
+    fd.getAll("repeatDays").map((d) => Math.floor(Number(d))).filter((d) => d >= 1 && d <= 7)
+  );
+
+  const whole = !!fd.get("whole");
+  const fromHour = Math.floor(Number(fd.get("fromHour")));
+  const toHour = Math.floor(Number(fd.get("toHour")));
+  if (!whole && !(fromHour >= 0 && toHour > fromHour && toHour <= 24)) {
+    return { error: "Please choose a valid time range (or block the whole day)." };
+  }
 
   const settings = await getFieldSettings();
-  const dayHours = slotHoursForDay(settings, dateKey);
-  let hours: number[];
-  if (fd.get("whole")) {
-    hours = dayHours;
-  } else {
-    hours = fd
-      .getAll("hours")
-      .map((h) => Math.floor(Number(h)))
-      .filter((h) => dayHours.includes(h));
-  }
-  if (!hours.length) return { error: "Select at least one hour (or block the whole day)." };
-
-  const date = atUtcMidnight(dateKey);
   const note = String(fd.get("note") || "").trim() || null;
+
+  // Build the list of (date, hour) pairs to block.
+  const rows: { date: Date; hour: number; note: string | null }[] = [];
+  let cursor = atUtcMidnight(fromKey);
+  const last = atUtcMidnight(toKey);
+  let guard = 0;
+  while (cursor.getTime() <= last.getTime() && guard++ < RANGE_DAY_CAP) {
+    const key = dayKey(cursor);
+    const wd = isoWeekday(cursor);
+    if (repeatDays.size === 0 || repeatDays.has(wd)) {
+      const dayHours = slotHoursForDay(settings, key);
+      const wanted = whole ? dayHours : dayHours.filter((h) => h >= fromHour && h < toHour);
+      for (const h of wanted) rows.push({ date: atUtcMidnight(key), hour: h, note });
+    }
+    cursor = new Date(cursor.getTime() + 86400000);
+  }
+
+  if (rows.length === 0) {
+    return { error: "Nothing to block — check the dates, weekdays and times." };
+  }
+  if (rows.length > SLOT_CAP) {
+    return { error: "That covers too many slots at once — please narrow the range or times." };
+  }
+
   let created = 0;
-  for (const h of hours) {
+  for (const r of rows) {
     try {
       await prisma.fieldSlot.create({
-        data: { date, hour: h, kind: FIELD_SLOT_KIND.BLOCK, note },
+        data: { date: r.date, hour: r.hour, kind: FIELD_SLOT_KIND.BLOCK, note: r.note },
       });
       created++;
     } catch {
-      /* already booked/blocked — skip */
+      /* already booked/blocked — skip (unique [date,hour]) */
     }
   }
   revalidatePath("/admin/field/blocks");
   revalidatePath("/field");
-  if (created === 0) return { error: "Those hours are already booked or blocked." };
+  if (created === 0) return { error: "Those times are already booked or blocked." };
   return { ok: true };
 }
 
@@ -175,6 +207,17 @@ export async function removeBlock(id: string) {
   await admin();
   // deleteMany lets us guard on kind so we never delete a real booking's slot.
   await prisma.fieldSlot.deleteMany({ where: { id, kind: FIELD_SLOT_KIND.BLOCK } });
+  revalidatePath("/admin/field/blocks");
+  revalidatePath("/field");
+}
+
+// Clear every block on a given day (leaves real bookings untouched).
+export async function removeBlocksForDay(dateKey: string) {
+  await admin();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
+  await prisma.fieldSlot.deleteMany({
+    where: { date: atUtcMidnight(dateKey), kind: FIELD_SLOT_KIND.BLOCK },
+  });
   revalidatePath("/admin/field/blocks");
   revalidatePath("/field");
 }

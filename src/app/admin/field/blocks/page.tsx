@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { atUtcMidnight, formatDate, dayKey } from "@/lib/dates";
 import { slotLabel } from "@/lib/field";
 import { FIELD_SLOT_KIND } from "@/lib/constants";
-import { BlockForm, RemoveBlockButton } from "./BlockClient";
+import { BlockForm, RemoveBlockButton, ClearDayButton } from "./BlockClient";
 
 export const dynamic = "force-dynamic";
 
@@ -39,10 +39,13 @@ export default async function BlocksPage() {
         ) : (
           [...byDay.entries()].map(([k, rows]) => (
             <div key={k} className="card">
-              <p className="mb-2 font-semibold">
-                {formatDate(rows[0].date)}
-                {rows[0].note ? <span className="ml-2 text-sm font-normal text-muted">{rows[0].note}</span> : null}
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="font-semibold">
+                  {formatDate(rows[0].date)}
+                  {rows[0].note ? <span className="ml-2 text-sm font-normal text-muted">{rows[0].note}</span> : null}
+                </p>
+                <ClearDayButton dateKey={k} />
+              </div>
               <div className="flex flex-wrap gap-2">
                 {rows.map((r) => (
                   <span key={r.id} className="flex items-center gap-1 rounded-lg bg-mist px-2 py-1 text-sm">
