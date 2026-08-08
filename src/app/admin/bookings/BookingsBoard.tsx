@@ -68,7 +68,7 @@ export function BookingsBoard({ ready, weeks }: { ready: WalkCard[]; weeks: Week
         />
       )}
 
-      {/* Upcoming, week by week */}
+      {/* Upcoming, week by week — view/edit only (can't complete a future walk) */}
       {weeks.map((wk) => (
         <Section
           key={wk.key}
@@ -78,7 +78,7 @@ export function BookingsBoard({ ready, weeks }: { ready: WalkCard[]; weeks: Week
           selected={selected}
           onToggle={toggle}
           onSelectAll={(on) => setMany(wk.walks.map((w) => w.id), on)}
-          canComplete
+          canComplete={false}
         />
       ))}
 
@@ -124,9 +124,11 @@ function Section({
           <h2 className="text-lg font-bold">{title}</h2>
           <span className="badge bg-mist text-muted">{walks.length}</span>
         </div>
-        <button onClick={() => onSelectAll(!allOn)} className="text-xs font-semibold text-brand hover:underline">
-          {allOn ? "Unselect all" : "Select all"}
-        </button>
+        {canComplete && (
+          <button onClick={() => onSelectAll(!allOn)} className="text-xs font-semibold text-brand hover:underline">
+            {allOn ? "Unselect all" : "Select all"}
+          </button>
+        )}
       </div>
       <div className="space-y-2">
         {walks.map((w) => (
@@ -151,8 +153,10 @@ function WalkRow({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   return (
-    <div className={`card flex flex-wrap items-center gap-3 ${checked ? "ring-2 ring-brand/40" : ""}`}>
-      <input type="checkbox" checked={checked} onChange={onToggle} className="h-4 w-4 shrink-0" aria-label="Select walk" />
+    <div className={`card flex flex-wrap items-center gap-3 ${checked && canComplete ? "ring-2 ring-brand/40" : ""}`}>
+      {canComplete && (
+        <input type="checkbox" checked={checked} onChange={onToggle} className="h-4 w-4 shrink-0" aria-label="Select walk" />
+      )}
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 font-semibold">
           {w.client}
