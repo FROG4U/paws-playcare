@@ -40,10 +40,7 @@ export function SiteNavBar({
         My account
       </Link>
     ) : (
-      <Link href="/online-booking-form" onClick={() => setOpen(false)} className={`btn-primary ${full ? "w-full py-3" : ""}`}>
-        <Icon name="calendar" className="h-4 w-4" />
-        Book / Log in
-      </Link>
+      <BookChooser full={full} onNavigate={() => setOpen(false)} />
     );
 
   return (
@@ -123,5 +120,94 @@ export function SiteNavBar({
         </div>
       )}
     </>
+  );
+}
+
+// Lets a brand-new visitor pick their path: dog walking or field/playground.
+// Each option goes to that product's own booking + login.
+function BookChooser({ full, onNavigate }: { full?: boolean; onNavigate: () => void }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => setMenuOpen(false);
+    window.addEventListener("click", close);
+    window.addEventListener("scroll", close, { passive: true });
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("scroll", close);
+    };
+  }, [menuOpen]);
+
+  const options = [
+    { href: "/online-booking-form", icon: "paw", title: "Dog walking", sub: "Walks & play sessions" },
+    { href: "/field", icon: "calendar", title: "Field / playground", sub: "Hire the field by the hour" },
+  ];
+
+  // Mobile (in the full-screen menu): two stacked buttons.
+  if (full) {
+    return (
+      <div className="space-y-2">
+        <p className="mb-1 text-sm font-semibold text-muted">Book or log in</p>
+        {options.map((o, i) => (
+          <Link
+            key={o.href}
+            href={o.href}
+            onClick={onNavigate}
+            className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left font-bold ${
+              i === 0 ? "btn-primary" : "btn-outline"
+            }`}
+          >
+            <Icon name={o.icon} className="h-5 w-5 shrink-0" />
+            <span>
+              {o.title}
+              <span className="block text-xs font-normal opacity-80">{o.sub}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    );
+  }
+
+  // Desktop: a dropdown under the button.
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        className="btn-primary"
+      >
+        <Icon name="calendar" className="h-4 w-4" />
+        Book / Log in
+        <Icon name="chevronRight" className={`h-4 w-4 transition ${menuOpen ? "-rotate-90" : "rotate-90"}`} />
+      </button>
+      {menuOpen && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-border bg-surface p-1.5 shadow-xl"
+          role="menu"
+        >
+          {options.map((o) => (
+            <Link
+              key={o.href}
+              href={o.href}
+              onClick={() => { setMenuOpen(false); onNavigate(); }}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-brand-soft"
+              role="menuitem"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand">
+                <Icon name={o.icon} className="h-[1.15rem] w-[1.15rem]" />
+              </span>
+              <span>
+                <span className="block text-sm font-bold text-foreground">{o.title}</span>
+                <span className="block text-xs text-muted">{o.sub}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
