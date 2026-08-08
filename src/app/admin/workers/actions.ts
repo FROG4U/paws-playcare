@@ -7,6 +7,43 @@ import { ROLES } from "@/lib/constants";
 
 const INVITE_DAYS = 14;
 
+export type StaffFormState = { ok?: boolean; error?: string; createdName?: string };
+
+// Create a staff account (admin or walker) directly, with a password you set —
+// no invite link or email needed. Active straight away.
+export async function createStaffAccount(
+  _prev: StaffFormState,
+  formData: FormData
+): Promise<StaffFormState> {
+  await requireRole([ROLES.ADMIN]);
+  const name = String(formData.get("name") || "").trim();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const password = String(formData.get("password") || "");
+  const roleRaw = String(formData.get("role") || ROLES.ADMIN);
+  const role = roleRaw === ROLES.WORKER ? ROLES.WORKER : ROLES.ADMIN;
+
+  if (!name) return { error: "Please enter a name." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Please enter a valid email address." };
+  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return { error: "An account with that email already exists." };
+
+  await prisma.user.create({
+    data: {
+      name,
+      email,
+      passwordHash: await hashPassword(password),
+      role,
+      status: "ACTIVE",
+      canWork: true,
+      approvedAt: new Date(),
+    },
+  });
+  revalidatePath("/admin/workers");
+  return { ok: true, createdName: name };
+}
+
 // Set/reset a staff member's (admin or walker) login password directly — no
 // email or command line needed. Also ensures the account is ACTIVE so a
 // suspended/locked staff member can get back in.

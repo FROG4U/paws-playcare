@@ -21,17 +21,18 @@ const password =
   process.env.NEW_PASSWORD ||
   `Paws-${crypto.randomBytes(3).toString("hex")}-${crypto.randomBytes(3).toString("hex")}`;
 
-const user = await prisma.user.findUnique({ where: { email } });
-if (!user) {
-  console.error(`\n❌ No account found for ${email}. Nothing changed.\n`);
-  await prisma.$disconnect();
-  process.exit(1);
-}
+const existing = await prisma.user.findUnique({ where: { email } });
+const hash = await bcrypt.hash(password, 10);
+// Optional 4th arg = name (only used when creating). Sensible default for Kitty.
+const name =
+  existing?.name ||
+  process.argv[4] ||
+  (email === "kitty@pawsplaycare.co.uk" ? "Kitty Cole" : email.split("@")[0]);
 
-await prisma.user.update({
+await prisma.user.upsert({
   where: { email },
-  data: {
-    passwordHash: await bcrypt.hash(password, 10),
+  update: {
+    passwordHash: hash,
     role: "ADMIN",
     status: "ACTIVE",
     canWork: true,
@@ -39,11 +40,21 @@ await prisma.user.update({
     suspendedAt: null,
     suspendReason: null,
   },
+  create: {
+    email,
+    name,
+    passwordHash: hash,
+    role: "ADMIN",
+    status: "ACTIVE",
+    canWork: true,
+    approvedAt: new Date(),
+  },
 });
 
-console.log(`\n✅ Password reset for ${email}`);
-console.log(`   Temporary password:  ${password}`);
-console.log(`   Account is now ADMIN + ACTIVE.`);
+console.log(`\n✅ ${existing ? "Password reset" : "Admin account CREATED"} for ${email}`);
+console.log(`   Name:      ${name}`);
+console.log(`   Password:  ${password}`);
+console.log(`   Role: ADMIN · status: ACTIVE`);
 console.log(`   → Log in at /PPC and change the password in the app.\n`);
 
 await prisma.$disconnect();

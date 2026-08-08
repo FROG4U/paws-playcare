@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui";
 import { createWorkerInvite } from "./actions";
 import { CopyLink, RevokeButton, WorkerActiveToggle } from "./InviteControls";
 import { StaffPassword } from "./StaffPassword";
+import { AddStaff } from "./AddStaff";
 
 export default async function TeamPage() {
   const team = await prisma.user.findMany({
@@ -22,8 +23,14 @@ export default async function TeamPage() {
       <PageHeader
         icon="footprints"
         title="Team"
-        subtitle="Admins are walkers by default. Invite new walkers with a link."
+        subtitle="Admins are walkers by default. Add staff directly, or invite walkers with a link."
       />
+
+      {/* Add a team member directly (admin or walker) */}
+      <div className="card space-y-4">
+        <h2 className="text-lg font-bold">Add a team member</h2>
+        <AddStaff />
+      </div>
 
       {/* Invite a worker */}
       <div className="card space-y-4">
