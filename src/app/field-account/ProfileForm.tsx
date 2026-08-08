@@ -7,11 +7,13 @@ export function ProfileForm({
   name,
   email,
   phone,
+  address,
   carReg,
 }: {
   name: string;
   email: string;
   phone: string | null;
+  address: string | null;
   carReg: string | null;
 }) {
   const [state, action, pending] = useActionState<ProfileState, FormData>(
@@ -31,6 +33,10 @@ export function ProfileForm({
       <label className="block">
         <span className="mb-1 block text-sm font-medium">Phone</span>
         <input name="phone" defaultValue={phone ?? ""} className="input" />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium">Address</span>
+        <input name="address" defaultValue={address ?? ""} className="input" placeholder="Your address" />
       </label>
       <label className="block">
         <span className="mb-1 block text-sm font-medium">Car registration</span>

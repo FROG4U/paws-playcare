@@ -80,7 +80,7 @@ export default async function FieldAccountHome() {
         {/* Contact details */}
         <section className="card">
           <h2 className="mb-3 font-bold">Your details</h2>
-          <ProfileForm name={user.name} email={user.email} phone={user.phone} carReg={user.carReg} />
+          <ProfileForm name={user.name} email={user.email} phone={user.phone} address={user.address} carReg={user.carReg} />
         </section>
 
         {/* Saved card */}

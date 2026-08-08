@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 import { getFieldSettings } from "@/lib/field";
@@ -23,9 +24,15 @@ export default async function FieldPage() {
     monthView(now.getUTCFullYear(), now.getUTCMonth() + 1),
   ]);
 
-  const fieldClient =
-    user?.role === ROLES.FIELD_CLIENT
-      ? { name: user.name, email: user.email, phone: user.phone ?? "", carReg: user.carReg ?? "" }
+  const isFieldClient = user?.role === ROLES.FIELD_CLIENT;
+  const fieldClient = isFieldClient
+    ? { name: user!.name, email: user!.email, phone: user!.phone ?? "", carReg: user!.carReg ?? "" }
+    : null;
+  // A logged-in dog-walking client can also book the field — prefill their
+  // details (they book as a guest; it isn't tied to their dog-walking account).
+  const prefill =
+    user && user.role === ROLES.CLIENT
+      ? { name: user.name, email: user.email, phone: user.phone ?? "", carReg: "" }
       : null;
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
 
@@ -36,6 +43,14 @@ export default async function FieldPage() {
         sub="Our private, secure field — hire it by the hour and get instant access codes by email"
       />
       <div className="mx-auto w-full max-w-3xl px-5 py-10">
+        {!user && (
+          <p className="mb-4 text-right text-sm text-muted">
+            Booked with us before?{" "}
+            <Link href="/field/login" className="font-semibold text-brand">
+              Log in to your field account
+            </Link>
+          </p>
+        )}
         <FieldBooking
           initialYear={now.getUTCFullYear()}
           initialMonth={now.getUTCMonth() + 1}
@@ -44,6 +59,7 @@ export default async function FieldPage() {
           publishableKey={publishableKey}
           payEnabled={stripeConfigured() && !!publishableKey}
           fieldClient={fieldClient}
+          prefill={prefill}
           seasonInfo={{
             summer: { open: settings.summerOpenHour, close: settings.summerCloseHour },
             winter: { open: settings.winterOpenHour, close: settings.winterCloseHour },

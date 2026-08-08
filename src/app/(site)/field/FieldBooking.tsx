@@ -58,6 +58,7 @@ export function FieldBooking({
   publishableKey,
   payEnabled,
   fieldClient,
+  prefill,
   seasonInfo,
 }: {
   initialYear: number;
@@ -67,6 +68,7 @@ export function FieldBooking({
   publishableKey: string;
   payEnabled: boolean;
   fieldClient: FieldClient;
+  prefill?: FieldClient;
   seasonInfo: { summer: Hours; winter: Hours };
 }) {
   const router = useRouter();
@@ -78,10 +80,13 @@ export function FieldBooking({
   const [selection, setSelection] = useState<Record<string, number[]>>({});
   const [pending, startTransition] = useTransition();
 
-  const [name, setName] = useState(fieldClient?.name ?? "");
-  const [email, setEmail] = useState(fieldClient?.email ?? "");
-  const [phone, setPhone] = useState(fieldClient?.phone ?? "");
-  const [carReg, setCarReg] = useState(fieldClient?.carReg ?? "");
+  const [name, setName] = useState(fieldClient?.name ?? prefill?.name ?? "");
+  const [email, setEmail] = useState(fieldClient?.email ?? prefill?.email ?? "");
+  const [phone, setPhone] = useState(fieldClient?.phone ?? prefill?.phone ?? "");
+  const [carReg, setCarReg] = useState(fieldClient?.carReg ?? prefill?.carReg ?? "");
+  // Any logged-in user (field client or a dog-walking client) shouldn't see the
+  // "create an account" option — only brand-new guests do.
+  const loggedIn = !!fieldClient || !!prefill;
   const [createAccount, setCreateAccount] = useState(false);
   const [password, setPassword] = useState("");
   const [saveCard, setSaveCard] = useState(false);
@@ -439,13 +444,13 @@ export function FieldBooking({
             We ask for your car registration so we know who&apos;s using the playground and parking.
           </p>
 
-          {!fieldClient && (
+          {!loggedIn && (
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" checked={createAccount} onChange={(e) => setCreateAccount(e.target.checked)} className="mt-0.5" />
               <span><span className="font-semibold">Create an account</span> to see your booking history and book faster next time.</span>
             </label>
           )}
-          {!fieldClient && createAccount && (
+          {!loggedIn && createAccount && (
             <Field label="Choose a password (min 8 characters)" required>
               <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
             </Field>
