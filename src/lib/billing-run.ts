@@ -408,3 +408,25 @@ export async function blockOverdueClients(now: Date = new Date()) {
 
   return { blocked };
 }
+
+// Evening nudge: if any walks up to today still aren't completed, remind the
+// admins to mark them done (also delivered as a phone push). Run ~7pm.
+export async function remindAdminsToComplete(
+  now: Date
+): Promise<{ completeReminder: number }> {
+  const todayEnd = new Date(dayKey(now) + "T23:59:59.999Z");
+  const count = await prisma.walk.count({
+    where: {
+      status: { in: [WALK_STATUS.REQUESTED, WALK_STATUS.ASSIGNED, WALK_STATUS.ACCEPTED] },
+      date: { lte: todayEnd },
+    },
+  });
+  if (count === 0) return { completeReminder: 0 };
+  await notifyAdmins({
+    type: NOTIF_TYPE.COMPLETE_REMINDER,
+    title: `${count} walk${count > 1 ? "s" : ""} to complete`,
+    body: `You have ${count} walk${count > 1 ? "s" : ""} up to today ready to mark as done.`,
+    link: "/admin/bookings",
+  });
+  return { completeReminder: count };
+}

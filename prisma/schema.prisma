@@ -77,6 +77,9 @@ model User {
   // booking survives if the account is later deleted (kept as guest history).
   fieldBookings   FieldBooking[]   @relation("FieldClientBookings")
 
+  // Web-push subscriptions (one per device/browser the user enabled).
+  pushSubscriptions PushSubscription[]
+
   // Admin block on a FIELD_CLIENT (separate from dog-client SUSPENDED status).
   fieldBlockedAt  DateTime?
   fieldBlockReason String?
@@ -522,6 +525,20 @@ model FieldCoupon {
   usedCount Int       @default(0)
   expiresAt DateTime?
   createdAt DateTime  @default(now())
+}
+
+// A browser/device push subscription (Web Push). One user can have several
+// (phone, desktop, …). Stale ones are pruned when a send returns 404/410.
+model PushSubscription {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint String @unique
+  p256dh   String
+  auth     String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------

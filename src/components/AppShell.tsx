@@ -4,6 +4,7 @@ import { Icon } from "./Icon";
 import { SideNav, BottomNav, type NavItem } from "./NavLink";
 import { InstallMenuButton } from "./pwa";
 import { MobileMenu } from "./MobileMenu";
+import { EnablePushButton, AppBadge } from "./PushNotifications";
 import { logoutAction } from "@/app/actions/auth";
 
 function initials(name: string) {
@@ -40,8 +41,9 @@ export function AppShell({
             Menu
           </p>
           <SideNav items={items} />
-          <div className="mt-3">
+          <div className="mt-3 space-y-1">
             <InstallMenuButton variant="sidebar" />
+            <EnablePushButton publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""} />
           </div>
         </div>
         <div className="border-t border-border p-3">
@@ -91,6 +93,7 @@ export function AppShell({
       </main>
 
       <BottomNav items={items} />
+      <AppBadge count={unread} />
     </div>
   );
 }

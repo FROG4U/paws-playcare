@@ -124,6 +124,7 @@ export const NOTIF_TYPE = {
   FIELD_BOOKING_PAID: "FIELD_BOOKING_PAID", // a field/playground booking was paid (notify admins)
   PAUSE_REQUESTED: "PAUSE_REQUESTED", // client asked an admin to pause their walks
   PAUSE_RESOLVED: "PAUSE_RESOLVED",   // admin paused/declined (notify client)
+  COMPLETE_REMINDER: "COMPLETE_REMINDER", // evening nudge: walks waiting to be completed
 } as const;
 
 // ---------------------------------------------------------------------------

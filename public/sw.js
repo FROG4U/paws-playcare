@@ -8,7 +8,7 @@
 //   - Static media/fonts: cached for speed + offline, refreshed in background.
 //   - App code (/_next/), API calls, POSTs, Stripe: left entirely to the browser.
 
-const VERSION = "ppc-v3";
+const VERSION = "ppc-v4";
 const STATIC_CACHE = `${VERSION}-static`;
 const OFFLINE_URL = "/offline.html";
 
@@ -67,4 +67,37 @@ self.addEventListener("fetch", (event) => {
       })
     );
   }
+});
+
+// --- Web Push -------------------------------------------------------------
+// Show a notification when a push arrives (works even when the app is closed).
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (_) { data = {}; }
+  const title = data.title || "Paws Playcare";
+  const options = {
+    body: data.body || "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    data: { url: data.url || "/" },
+    tag: data.tag || undefined,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Focus an existing tab (or open one) at the notification's link when tapped.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.navigate(url).catch(() => {});
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
 });

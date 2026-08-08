@@ -7,6 +7,7 @@ import { Logo } from "./Logo";
 import { Icon } from "./Icon";
 import { SideNav, type NavItem } from "./NavLink";
 import { InstallMenuButton } from "./pwa";
+import { EnablePushButton } from "./PushNotifications";
 import { logoutAction } from "@/app/actions/auth";
 
 function initials(name: string) {
@@ -73,8 +74,9 @@ export function MobileMenu({
 
             <div className="flex-1 overflow-y-auto px-3 py-4">
               <SideNav items={items} />
-              <div className="mt-3">
+              <div className="mt-3 space-y-1">
                 <InstallMenuButton variant="sidebar" />
+                <EnablePushButton publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""} />
               </div>
             </div>
 
