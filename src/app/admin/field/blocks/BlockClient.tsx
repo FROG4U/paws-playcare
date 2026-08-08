@@ -13,16 +13,27 @@ const WEEKDAYS = [
   { v: 7, label: "Sun" },
 ];
 
+type DayConf = { whole: boolean; from: number; to: number };
+const DEFAULT_CONF: DayConf = { whole: true, from: 9, to: 12 };
+
 export function BlockForm() {
   const [state, action, pending] = useActionState<FormState, FormData>(createBlock, {});
+  const [repeat, setRepeat] = useState(false);
+  const [days, setDays] = useState<number[]>([]);
+  const [conf, setConf] = useState<Record<number, DayConf>>({});
+  // Single (non-repeat) time config, applied to every day in the range.
   const [whole, setWhole] = useState(true);
   const [from, setFrom] = useState(9);
   const [to, setTo] = useState(12);
-  const [repeat, setRepeat] = useState(false);
-  const [days, setDays] = useState<number[]>([]);
 
   const toggleDay = (v: number) =>
-    setDays((d) => (d.includes(v) ? d.filter((x) => x !== v) : [...d, v]));
+    setDays((d) => {
+      if (d.includes(v)) return d.filter((x) => x !== v);
+      setConf((c) => ({ ...c, [v]: c[v] ?? { ...DEFAULT_CONF } }));
+      return [...d, v].sort((a, b) => a - b);
+    });
+  const patchDay = (wd: number, patch: Partial<DayConf>) =>
+    setConf((c) => ({ ...c, [wd]: { ...(c[wd] ?? DEFAULT_CONF), ...patch } }));
 
   return (
     <form action={action} className="card space-y-4">
@@ -56,45 +67,80 @@ export function BlockForm() {
           <span>Repeat — only block certain weekdays in that range</span>
         </label>
         {repeat && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {WEEKDAYS.map((d) => {
-              const on = days.includes(d.v);
-              return (
-                <button
-                  type="button"
-                  key={d.v}
-                  onClick={() => toggleDay(d.v)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                    on ? "bg-brand text-white" : "bg-mist text-muted hover:bg-brand-soft"
-                  }`}
-                >
-                  {d.label}
-                </button>
-              );
-            })}
-            {days.map((v) => (
-              <input key={v} type="hidden" name="repeatDays" value={v} />
-            ))}
-          </div>
+          <>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {WEEKDAYS.map((d) => {
+                const on = days.includes(d.v);
+                return (
+                  <button
+                    type="button"
+                    key={d.v}
+                    onClick={() => toggleDay(d.v)}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                      on ? "bg-brand text-white" : "bg-mist text-muted hover:bg-brand-soft"
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Per-weekday time slot — each day can differ */}
+            {days.length === 0 ? (
+              <p className="mt-2 text-xs text-muted">Pick the weekdays to block, then set each day&apos;s time.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {[...days].sort((a, b) => a - b).map((wd) => {
+                  const c = conf[wd] ?? DEFAULT_CONF;
+                  const label = WEEKDAYS.find((d) => d.v === wd)?.label ?? "";
+                  return (
+                    <div key={wd} className="flex flex-wrap items-center gap-3 rounded-xl bg-mist px-3 py-2">
+                      <span className="w-9 font-bold">{label}</span>
+                      <input type="hidden" name="repeatDays" value={wd} />
+                      <label className="flex items-center gap-1.5 text-sm">
+                        <input
+                          type="checkbox"
+                          name={`whole${wd}`}
+                          checked={c.whole}
+                          onChange={(e) => patchDay(wd, { whole: e.target.checked })}
+                        />
+                        Whole day
+                      </label>
+                      {!c.whole && (
+                        <span className="flex items-center gap-2">
+                          <HourSelect name={`from${wd}`} value={c.from} onChange={(v) => patchDay(wd, { from: v })} />
+                          <span className="text-muted">to</span>
+                          <HourSelect name={`to${wd}`} value={c.to} onChange={(v) => patchDay(wd, { to: v })} />
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* Times */}
-      <div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={whole} onChange={(e) => setWhole(e.target.checked)} />
-          <span>Block the whole day</span>
-        </label>
-        {whole ? (
-          <input type="hidden" name="whole" value="1" />
-        ) : (
-          <div className="mt-2 flex items-center gap-2">
-            <HourSelect name="fromHour" value={from} onChange={setFrom} />
-            <span className="text-muted">to</span>
-            <HourSelect name="toHour" value={to} onChange={setTo} />
-          </div>
-        )}
-      </div>
+      {/* Single time config (only when NOT repeating) */}
+      {!repeat && (
+        <div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={whole} onChange={(e) => setWhole(e.target.checked)} />
+            <span>Block the whole day</span>
+          </label>
+          {whole ? (
+            <input type="hidden" name="whole" value="1" />
+          ) : (
+            <div className="mt-2 flex items-center gap-2">
+              <HourSelect name="fromHour" value={from} onChange={setFrom} />
+              <span className="text-muted">to</span>
+              <HourSelect name="toHour" value={to} onChange={setTo} />
+            </div>
+          )}
+        </div>
+      )}
 
       <label className="block">
         <span className="mb-1 block text-sm font-medium">Reason (optional)</span>

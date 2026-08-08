@@ -138,6 +138,10 @@ export async function deleteCoupon(id: string) {
 // left alone.
 const RANGE_DAY_CAP = 400; // guard against runaway ranges
 const SLOT_CAP = 1500; // max block slots created in one go
+const DAY_NAME: Record<number, string> = {
+  1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday",
+  5: "Friday", 6: "Saturday", 7: "Sunday",
+};
 
 export async function createBlock(_prev: FormState, fd: FormData): Promise<FormState> {
   await admin();
@@ -153,15 +157,36 @@ export async function createBlock(_prev: FormState, fd: FormData): Promise<FormS
     fd.getAll("repeatDays").map((d) => Math.floor(Number(d))).filter((d) => d >= 1 && d <= 7)
   );
 
-  const whole = !!fd.get("whole");
-  const fromHour = Math.floor(Number(fd.get("fromHour")));
-  const toHour = Math.floor(Number(fd.get("toHour")));
-  if (!whole && !(fromHour >= 0 && toHour > fromHour && toHour <= 24)) {
-    return { error: "Please choose a valid time range (or block the whole day)." };
-  }
-
   const settings = await getFieldSettings();
   const note = String(fd.get("note") || "").trim() || null;
+
+  type TimeConf = { whole: boolean; from: number; to: number };
+  const validTime = (c: TimeConf) => c.whole || (c.from >= 0 && c.to > c.from && c.to <= 24);
+
+  // When repeating, each chosen weekday carries its OWN time slot (Mon 9–12,
+  // Wed whole day, …). Without repeat, one time config applies to every day.
+  const perDay = new Map<number, TimeConf>();
+  if (repeatDays.size > 0) {
+    for (const wd of repeatDays) {
+      const conf: TimeConf = {
+        whole: !!fd.get(`whole${wd}`),
+        from: Math.floor(Number(fd.get(`from${wd}`))),
+        to: Math.floor(Number(fd.get(`to${wd}`))),
+      };
+      if (!validTime(conf)) {
+        return { error: `Please choose a valid time for ${DAY_NAME[wd]} (or block its whole day).` };
+      }
+      perDay.set(wd, conf);
+    }
+  }
+  const single: TimeConf = {
+    whole: !!fd.get("whole"),
+    from: Math.floor(Number(fd.get("fromHour"))),
+    to: Math.floor(Number(fd.get("toHour"))),
+  };
+  if (repeatDays.size === 0 && !validTime(single)) {
+    return { error: "Please choose a valid time range (or block the whole day)." };
+  }
 
   // Build the list of (date, hour) pairs to block.
   const rows: { date: Date; hour: number; note: string | null }[] = [];
@@ -172,8 +197,9 @@ export async function createBlock(_prev: FormState, fd: FormData): Promise<FormS
     const key = dayKey(cursor);
     const wd = isoWeekday(cursor);
     if (repeatDays.size === 0 || repeatDays.has(wd)) {
+      const conf = repeatDays.size > 0 ? perDay.get(wd)! : single;
       const dayHours = slotHoursForDay(settings, key);
-      const wanted = whole ? dayHours : dayHours.filter((h) => h >= fromHour && h < toHour);
+      const wanted = conf.whole ? dayHours : dayHours.filter((h) => h >= conf.from && h < conf.to);
       for (const h of wanted) rows.push({ date: atUtcMidnight(key), hour: h, note });
     }
     cursor = new Date(cursor.getTime() + 86400000);
