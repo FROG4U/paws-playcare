@@ -59,3 +59,18 @@ export async function sendPasswordResetEmail(to: string, rawToken: string) {
   );
   return sendEmail({ to, subject: "Reset your Paws Playcare password", html });
 }
+
+// Sent to a client when the admin closes a day their walk was booked on.
+export async function sendDayOffEmail(to: string, name: string, dateLabel: string, reason: string) {
+  const first = name.split(" ")[0] || "there";
+  const safe = reason.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const html = emailShell(
+    `We're closed on ${dateLabel}`,
+    p(`Hi ${first},`) +
+      p(`Just letting you know we won't be walking on <strong>${dateLabel}</strong>.`) +
+      p(`<strong>Reason:</strong> ${safe}`) +
+      p("Your walk booked for that day has been cancelled with <strong>no charge</strong> — the rest of your schedule is unaffected.") +
+      p("Sorry for any inconvenience, and thanks for understanding! 🐾")
+  );
+  return sendEmail({ to, subject: `We're not walking on ${dateLabel}`, html });
+}

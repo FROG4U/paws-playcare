@@ -7,7 +7,7 @@ import { ROLES, NOTIF_TYPE, WALK_STATUS, BOOKING_STATUS, BOOKING_TYPE } from "@/
 import { notify } from "@/lib/notifications";
 import { atUtcMidnight, formatDate, dayKey } from "@/lib/dates";
 import { getServices, serviceForName, serviceDays, servicePrice } from "@/lib/services";
-import { bankHolidayKeys, checkBookable, expandRecurring } from "@/lib/availability";
+import { blockedDateKeys, checkBookable, expandRecurring } from "@/lib/availability";
 import { addCompletedWalkToInvoice } from "@/lib/billing";
 
 // How far ahead resuming a paused recurring booking regenerates walks.
@@ -127,7 +127,7 @@ export async function addWalk(bookingId: string, dateStr: string): Promise<EditR
 
   const service = await serviceForBooking(booking);
   const svcDays = service ? serviceDays(service) : [1, 2, 3, 4, 5];
-  const bhKeys = await bankHolidayKeys();
+  const bhKeys = await blockedDateKeys();
   const check = checkBookable(dateStr, svcDays, bhKeys);
   if (!check.ok) {
     const why =
@@ -339,7 +339,7 @@ export async function resumeBooking(bookingId: string): Promise<EditResult> {
     if (days.length && service) {
       const svcDays = serviceDays(service);
       const useDays = days.filter((d) => svcDays.includes(d));
-      const bhKeys = await bankHolidayKeys();
+      const bhKeys = await blockedDateKeys();
       const startIso = dayKey(new Date());
       const endIso = dayKey(new Date(Date.now() + (ONGOING_HORIZON_DAYS - 1) * 86400000));
       const { dates } = expandRecurring(useDays, startIso, endIso, bhKeys);

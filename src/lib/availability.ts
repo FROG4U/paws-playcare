@@ -13,6 +13,20 @@ export async function bankHolidayKeys(): Promise<Set<string>> {
   return new Set(rows.map((r) => dayKey(r.date)));
 }
 
+// Ad-hoc admin-closed days.
+export async function closedDayKeys(): Promise<Set<string>> {
+  const rows = await prisma.closedDay.findMany({ select: { date: true } });
+  return new Set(rows.map((r) => dayKey(r.date)));
+}
+
+// Every non-working day (bank holidays + admin closures). This is the set the
+// booking generator and rollover skip, so nothing is ever scheduled on them.
+export async function blockedDateKeys(): Promise<Set<string>> {
+  const [bh, closed] = await Promise.all([bankHolidayKeys(), closedDayKeys()]);
+  for (const k of closed) bh.add(k);
+  return bh;
+}
+
 export type UnavailableReason = "weekend" | "bank_holiday" | "not_scheduled";
 
 // Can a service that runs on `weekdays` be booked on `date`?

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireClient } from "@/lib/guard";
 import { getServices, serviceDays } from "@/lib/services";
-import { bankHolidayKeys } from "@/lib/availability";
+import { blockedDateKeys } from "@/lib/availability";
 import { dayKey } from "@/lib/dates";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { BookingForm, type BookServiceOption, type BookDogOption } from "./BookingForm";
@@ -25,7 +25,7 @@ export default async function BookPage() {
   const [dogs, services, bhKeys] = await Promise.all([
     prisma.dog.findMany({ where: { ownerId: user.id, archivedAt: null }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } }),
     getServices(),
-    bankHolidayKeys(),
+    blockedDateKeys(),
   ]);
   const todayIso = dayKey(new Date());
 

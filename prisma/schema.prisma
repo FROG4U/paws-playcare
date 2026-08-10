@@ -224,6 +224,16 @@ model BankHoliday {
   division String   @default("england-and-wales")
 }
 
+// Ad-hoc days the business is closed (admin "I'm not working today"). Treated
+// exactly like a bank holiday: no walks are generated on these days, and any
+// existing walks are cancelled (no charge) + the clients emailed.
+model ClosedDay {
+  id        String   @id @default(cuid())
+  date      DateTime @unique // UTC midnight
+  reason    String
+  createdAt DateTime @default(now())
+}
+
 // A bookable service the admin manages from the backend (e.g. "Field Play",
 // "Walks"). Priced per dog. `daysOfWeek` is a JSON array of ISO weekdays it
 // runs on (Mon=1 … Fri=5). Weekends and bank holidays are never bookable —

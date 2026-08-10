@@ -12,7 +12,7 @@
 
 import { prisma } from "./prisma";
 import { getServices, serviceForName, serviceDays, servicePrice } from "./services";
-import { bankHolidayKeys, expandRecurring } from "./availability";
+import { blockedDateKeys, expandRecurring } from "./availability";
 import { dayKey } from "./dates";
 import { BOOKING_STATUS, BOOKING_TYPE, WALK_STATUS, USER_STATUS } from "./constants";
 
@@ -37,7 +37,7 @@ export async function rolloverOngoingBookings(
   if (bookings.length === 0) return { bookingsRolled: 0, walksCreated: 0 };
 
   const services = await getServices();
-  const bhKeys = await bankHolidayKeys();
+  const bhKeys = await blockedDateKeys();
   const startIso = dayKey(now);
   const endIso = dayKey(new Date(now.getTime() + (ROLL_HORIZON_DAYS - 1) * 86400000));
 

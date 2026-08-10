@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { ROLES, NOTIF_TYPE } from "@/lib/constants";
 import { getServices, serviceDays, servicePrice } from "@/lib/services";
-import { bankHolidayKeys, checkBookable, expandRecurring } from "@/lib/availability";
+import { blockedDateKeys, checkBookable, expandRecurring } from "@/lib/availability";
 import { atUtcMidnight, dayKey, formatDate } from "@/lib/dates";
 import { notify, notifyAdmins } from "@/lib/notifications";
 
@@ -51,7 +51,7 @@ export async function createBooking(input: BookInput): Promise<BookResult> {
 
   const numDogs = owned.length;
   const price = servicePrice(service, numDogs);
-  const bhKeys = await bankHolidayKeys();
+  const bhKeys = await blockedDateKeys();
   const mkWalk = (d: Date, isExtra = false) => ({
     clientId: user.id, date: d, timeSlot: service.timeSlot, serviceName: service.name,
     numDogs, price, isBankHoliday: false, status: "REQUESTED", isExtra,

@@ -26,6 +26,7 @@ export default async function AdminLayout({
     { href: "/admin/approvals", label: "Approvals", icon: "check", section: "Dog Walking" },
     { href: "/admin/bookings", label: "Bookings", icon: "clipboard", section: "Dog Walking" },
     { href: "/admin/cancellations", label: "Cancellations", icon: "x", badge: pendingCancels, section: "Dog Walking" },
+    { href: "/admin/days-off", label: "Days off", icon: "calendar", section: "Dog Walking" },
     { href: "/admin/clients", label: "Clients", icon: "users", badge: pausePending, section: "Dog Walking" },
     { href: "/admin/workers", label: "Team", icon: "footprints", section: "Dog Walking" },
     { href: "/admin/services", label: "Services", icon: "paw", section: "Dog Walking" },
