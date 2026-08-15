@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 // payment card, so nothing they filled in is lost.
 const DRAFT_KEY = "ppc-booking-draft";
 import { formatMoney } from "@/lib/money";
+import { perDogPrice } from "@/lib/dog-pricing";
 import { Icon } from "@/components/Icon";
 import { createBooking, type BookInput } from "./actions";
 import { ServiceCalendar, SERVICE_PALETTE } from "./ServiceCalendar";
@@ -152,7 +153,7 @@ export function BookingForm({
   );
   const datesTotal = useMemo(() => {
     let total = 0;
-    for (const s of services) total += s.pricePerDog * dogMult * (routing.byService[s.id]?.length ?? 0);
+    for (const s of services) total += perDogPrice(s.pricePerDog, numDogs) * dogMult * (routing.byService[s.id]?.length ?? 0);
     return total;
   }, [services, routing, dogMult]);
 
@@ -169,7 +170,7 @@ export function BookingForm({
         if (ds.length === 0) continue;
         const list = expandDaysIso(ds, startDate, effEnd, bhSet);
         count += list.length;
-        total += s.pricePerDog * dogMult * list.length;
+        total += perDogPrice(s.pricePerDog, numDogs) * dogMult * list.length;
         if (list.length && (!first || list[0] < first)) first = list[0];
       }
     }
@@ -182,7 +183,7 @@ export function BookingForm({
     [selectedServices, daysByService]
   );
   const weeklyTotal = useMemo(
-    () => selectedServices.reduce((t, s) => t + s.pricePerDog * dogMult * (daysByService[s.id]?.length ?? 0), 0),
+    () => selectedServices.reduce((t, s) => t + perDogPrice(s.pricePerDog, numDogs) * dogMult * (daysByService[s.id]?.length ?? 0), 0),
     [selectedServices, daysByService, dogMult]
   );
 
@@ -196,7 +197,7 @@ export function BookingForm({
   // Price shown to match how the client is billed — weekly clients see the
   // weekly cost, monthly clients see the (approx) monthly cost, daily per walk.
   const cadencePrice = useMemo(() => {
-    const perWalk = (selectedServices[0]?.pricePerDog ?? 0) * dogMult;
+    const perWalk = perDogPrice(selectedServices[0]?.pricePerDog ?? 0, numDogs) * dogMult;
     const walksLabel = (n: number) => `${n} walk${n !== 1 ? "s" : ""}`;
     if (weeklyCount === 0) {
       return { label: "Per walk", value: formatMoney(perWalk), note: "" };
@@ -437,7 +438,7 @@ export function BookingForm({
           <span className="text-lg font-bold">{cadencePrice.value}</span>
         </div>
         <p className="text-xs text-muted">
-          {formatMoney(selectedServices[0]?.pricePerDog ?? 0)} per dog, per walk{numDogs > 1 ? ` · ${numDogs} dogs` : ""}. {cadencePrice.note}
+          {formatMoney(perDogPrice(selectedServices[0]?.pricePerDog ?? 0, numDogs))} per dog, per walk{numDogs > 1 ? ` · ${numDogs} dogs (multi-dog rate)` : ""}. {cadencePrice.note}
         </p>
         {regularReady && (
           <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm font-medium text-brand-dark">

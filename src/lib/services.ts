@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { walkPriceFor } from "@/lib/dog-pricing";
 
 // The services the business offers, as first configured with the owner:
 //   • Field Play — Mon/Tue/Wed AM, £16 per dog
@@ -49,7 +50,7 @@ export function serviceDays(service: { daysOfWeek: string }): number[] {
   }
 }
 
-// Flat per-dog pricing: £16 × dogs (at least one dog).
+// Per-dog pricing: the service's per-dog rate, but £14/dog for 3+ dogs.
 export function servicePrice(service: { pricePerDog: number }, numDogs: number): number {
-  return service.pricePerDog * Math.max(1, numDogs);
+  return walkPriceFor(service.pricePerDog, numDogs);
 }
