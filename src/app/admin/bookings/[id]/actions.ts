@@ -259,7 +259,10 @@ async function stripWalkFromInvoice(walkId: string) {
     include: { invoice: true },
   });
   if (!item) return;
-  if (item.invoice.status !== "OPEN" || item.invoice.dueAt) return; // already issued — leave it
+  // Leave it only once the money has actually been collected. An invoice that's
+  // issued but not yet charged (dueAt set, still OPEN) can still be reduced
+  // before the charge runs, so "no charge" works right up to collection.
+  if (item.invoice.status === "PAID" || item.invoice.paidAt) return;
   await prisma.$transaction(async (tx) => {
     await tx.invoiceItem.delete({ where: { id: item.id } });
     const agg = await tx.invoiceItem.aggregate({ where: { invoiceId: item.invoiceId }, _sum: { amount: true } });
