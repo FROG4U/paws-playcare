@@ -58,7 +58,7 @@ export default async function CancellationsPage() {
               )}
               <p className="text-xs text-muted">Requested {formatDate(r.createdAt)}</p>
             </div>
-            <CancellationActions requestId={r.id} />
+            <CancellationActions requestId={r.id} late={r.feeApplies} priceLabel={formatMoney(w.price)} />
           </div>
         );
       })}

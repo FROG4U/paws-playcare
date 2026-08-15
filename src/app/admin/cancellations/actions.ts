@@ -27,7 +27,11 @@ function refresh() {
 // - Approve + within notice window: walk is cancelled, no charge.
 // - Approve + late (feeApplies): walk is cancelled BUT billed at full price and
 //   flagged as a late cancellation on the invoice + the client's account.
-export async function resolveCancellation(requestId: string, approve: boolean): Promise<Result> {
+export async function resolveCancellation(
+  requestId: string,
+  approve: boolean,
+  charge = true
+): Promise<Result> {
   const admin = await requireRole([ROLES.ADMIN]);
 
   const req = await prisma.changeRequest.findUnique({
@@ -54,8 +58,10 @@ export async function resolveCancellation(requestId: string, approve: boolean): 
     return { ok: true, message: "Cancellation declined." };
   }
 
-  // Approve — cancel the walk.
+  // Approve — cancel the walk. A within-7-days walk would normally still be
+  // charged, but the admin can waive that (charge = false).
   const late = req.feeApplies && walk.status !== WALK_STATUS.COMPLETED;
+  const willCharge = late && charge;
   await prisma.$transaction([
     prisma.changeRequest.update({
       where: { id: requestId },
@@ -67,14 +73,19 @@ export async function resolveCancellation(requestId: string, approve: boolean): 
         status: WALK_STATUS.CANCELLED,
         cancelledAt: new Date(),
         cancelledById: admin.id,
-        lateCancelled: late,
-        cancelReason: late ? "Cancelled with less than 7 days' notice — charged" : "Cancelled by client (approved)",
+        lateCancelled: willCharge,
+        noCharge: !willCharge,
+        cancelReason: willCharge
+          ? "Cancelled with less than 7 days' notice — charged"
+          : late
+          ? "Cancelled within 7 days — fee waived by admin"
+          : "Cancelled by client (approved)",
       },
     }),
   ]);
 
-  // Late cancellations are still billed at full price (flagged on the invoice).
-  if (late) {
+  if (willCharge) {
+    // Still billed at full price (flagged on the invoice).
     await addCompletedWalkToInvoice(walk.id);
     await notify({
       userId: walk.clientId,
@@ -88,11 +99,18 @@ export async function resolveCancellation(requestId: string, approve: boolean): 
       userId: walk.clientId,
       type: NOTIF_TYPE.CANCELLATION_RESOLVED,
       title: "Cancellation approved",
-      body: `Your ${walk.serviceName ?? "walk"} on ${formatDate(walk.date)} is cancelled — no charge. Thanks for the notice!`,
+      body: `Your ${walk.serviceName ?? "walk"} on ${formatDate(walk.date)} is cancelled — no charge.${late ? " We've waived the within-7-days fee this time." : " Thanks for the notice!"}`,
       link: "/client/walks",
     });
   }
 
   refresh();
-  return { ok: true, message: late ? "Cancelled — charged (late notice)." : "Cancelled — no charge." };
+  return {
+    ok: true,
+    message: willCharge
+      ? "Cancelled — charged (late notice)."
+      : late
+      ? "Cancelled — fee waived, no charge."
+      : "Cancelled — no charge.",
+  };
 }
