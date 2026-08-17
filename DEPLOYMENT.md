@@ -111,17 +111,19 @@ Then **Enable Node.js / Restart App** in Plesk.
 
 ## STEP 6 — Scheduled jobs (cron)
 
-Plesk → **Scheduled Tasks** → add three, each a "Fetch a URL" (or curl), all
+Plesk → **Scheduled Tasks** → add four, each a "Fetch a URL" (or curl), all
 using your `CRON_SECRET`:
 
 | When | URL |
 |------|-----|
+| Daily **18:00** | `https://pawsplaycare.co.uk/api/cron/complete-reminder?key=CRON_SECRET` |
 | Daily **19:00** | `https://pawsplaycare.co.uk/api/cron/finalize-invoices?key=CRON_SECRET` |
 | Daily **21:00** | `https://pawsplaycare.co.uk/api/cron/charge-invoices?key=CRON_SECRET` |
 | Daily **08:00** | `https://pawsplaycare.co.uk/api/cron/maintenance?key=CRON_SECRET` |
 
-(finalize = send invoices, charge = take payment, maintenance = card-expiry +
-unpaid blocks.)
+(complete-reminder = 6pm push telling admins which walks still need marking
+done, finalize = send invoices, charge = take payment, maintenance =
+card-expiry + unpaid blocks.)
 
 ---
 

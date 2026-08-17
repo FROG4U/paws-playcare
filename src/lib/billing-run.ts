@@ -409,12 +409,21 @@ export async function blockOverdueClients(now: Date = new Date()) {
   return { blocked };
 }
 
-// Evening nudge: if any walks up to today still aren't completed, remind the
-// admins to mark them done (also delivered as a phone push). Run ~7pm.
+// End-of-day nudge: if any walks up to today still aren't completed, remind the
+// admins to mark them done (also delivered as a phone push). Runs ~6pm from its
+// own cron, an hour before invoices are finalised — the 7pm run calls it again
+// as a safety net, so it's capped at one reminder a day.
 export async function remindAdminsToComplete(
   now: Date
 ): Promise<{ completeReminder: number }> {
+  const todayStart = new Date(dayKey(now) + "T00:00:00.000Z");
   const todayEnd = new Date(dayKey(now) + "T23:59:59.999Z");
+
+  const sentToday = await prisma.notification.count({
+    where: { type: NOTIF_TYPE.COMPLETE_REMINDER, createdAt: { gte: todayStart } },
+  });
+  if (sentToday > 0) return { completeReminder: 0 };
+
   const count = await prisma.walk.count({
     where: {
       status: { in: [WALK_STATUS.REQUESTED, WALK_STATUS.ASSIGNED, WALK_STATUS.ACCEPTED] },
