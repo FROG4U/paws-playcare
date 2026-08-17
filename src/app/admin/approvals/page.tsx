@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { ROLES, USER_STATUS } from "@/lib/constants";
-import { formatDate } from "@/lib/dates";
-import { BOOKING_SLOT_LABELS } from "@/lib/constants";
+import { formatDate, dayKey } from "@/lib/dates";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { ApprovalButtons } from "./ApprovalButtons";
+import { RequestedWalksEditor } from "./RequestedWalksEditor";
 
 export default async function ApprovalsPage() {
   const pending = await prisma.user.findMany({
@@ -63,25 +63,12 @@ export default async function ApprovalsPage() {
             try {
               reqSlots = JSON.parse(c.regSlots || "[]");
             } catch {}
-            if (reqSlots.length === 0 && !c.regStartDate) return null;
             return (
-              <div className="rounded-lg bg-brand-soft/60 p-3 text-sm">
-                <p className="font-semibold">Requested walks</p>
-                {reqSlots.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {reqSlots.map((s) => (
-                      <span key={s} className="badge bg-surface text-brand-dark">
-                        {BOOKING_SLOT_LABELS[s] ?? s}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {c.regStartDate && (
-                  <p className="mt-1 text-muted">
-                    Preferred start: {formatDate(c.regStartDate)}
-                  </p>
-                )}
-              </div>
+              <RequestedWalksEditor
+                userId={c.id}
+                initialSlots={reqSlots}
+                initialStart={c.regStartDate ? dayKey(c.regStartDate) : null}
+              />
             );
           })()}
 

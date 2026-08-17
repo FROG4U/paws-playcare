@@ -26,22 +26,63 @@ export default async function BookingsPage() {
   const [ready, upcoming, recentlyCompleted] = await Promise.all([
     prisma.walk.findMany({
       where: { status: { in: OPEN_STATUSES }, date: { lte: todayEnd } },
-      include: { client: { select: { name: true } }, worker: { select: { name: true } } },
+      include: {
+        client: { select: { name: true } },
+        worker: { select: { name: true } },
+        booking: { select: { dogIds: true } },
+      },
       orderBy: { date: "asc" },
     }),
     prisma.walk.findMany({
       where: { status: { in: OPEN_STATUSES }, date: { gt: todayEnd } },
-      include: { client: { select: { name: true } }, worker: { select: { name: true } } },
+      include: {
+        client: { select: { name: true } },
+        worker: { select: { name: true } },
+        booking: { select: { dogIds: true } },
+      },
       orderBy: { date: "asc" },
       take: 400,
     }),
     prisma.walk.findMany({
       where: { status: WALK_STATUS.COMPLETED },
-      include: { client: { select: { name: true } } },
+      include: {
+        client: { select: { name: true } },
+        booking: { select: { dogIds: true } },
+      },
       orderBy: { completedAt: "desc" },
       take: 15,
     }),
   ]);
+
+  // Resolve each walk's dog name(s) from its booking's dog list (one batched
+  // query), so the board can lead with pet names instead of the owner's name.
+  const dogIdSet = new Set<string>();
+  for (const w of [...ready, ...upcoming, ...recentlyCompleted]) {
+    try {
+      for (const id of JSON.parse(w.booking?.dogIds || "[]")) dogIdSet.add(id);
+    } catch {}
+  }
+  const dogRows = dogIdSet.size
+    ? await prisma.dog.findMany({
+        where: { id: { in: [...dogIdSet] } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const dogNameById = new Map(dogRows.map((d) => [d.id, d.name]));
+
+  const joinDogs = (names: string[]) =>
+    names.length <= 1
+      ? names[0] ?? ""
+      : `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+
+  const petsFor = (w: { numDogs: number; booking: { dogIds: string } | null }) => {
+    try {
+      const ids: string[] = JSON.parse(w.booking?.dogIds || "[]");
+      const names = ids.map((id) => dogNameById.get(id)).filter(Boolean) as string[];
+      if (names.length) return joinDogs(names);
+    } catch {}
+    return `${w.numDogs} dog${w.numDogs > 1 ? "s" : ""}`;
+  };
 
   const colorMap = serviceColorMap(await getServices());
   const colorOf = (name: string | null) => (name != null ? colorMap[name] ?? null : null);
@@ -49,7 +90,8 @@ export default async function BookingsPage() {
   type WalkRow = (typeof upcoming)[number];
   const toCard = (w: WalkRow): WalkCard => ({
     id: w.id,
-    client: w.client.name,
+    pets: petsFor(w),
+    owner: w.client.name,
     service: w.serviceName,
     colorIndex: colorOf(w.serviceName),
     dateLabel: formatDate(w.date),
@@ -115,11 +157,12 @@ export default async function BookingsPage() {
               <div key={w.id} className="card flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="flex items-center gap-2 font-semibold">
-                    {w.client.name}
+                    <Icon name="paw" className="h-4 w-4 shrink-0 text-brand" />
+                    {petsFor(w)}
                     <ServiceBadge name={w.serviceName ?? "Walk"} colorIndex={colorOf(w.serviceName)} />
                   </p>
                   <p className="text-sm text-muted">
-                    {formatDate(w.date)} · {w.numDogs} dog{w.numDogs > 1 ? "s" : ""} · {formatMoney(w.price)}
+                    {w.client.name} · {formatDate(w.date)} · {formatMoney(w.price)}
                     {w.completedAt ? ` · done ${formatDate(w.completedAt)}` : ""}
                   </p>
                 </div>

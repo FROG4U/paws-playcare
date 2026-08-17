@@ -8,7 +8,8 @@ import { completeWalk, completeWalks } from "./actions";
 
 export type WalkCard = {
   id: string;
-  client: string;
+  pets: string; // dog name(s) — shown as the card title
+  owner: string; // client/owner name — shown small underneath
   service: string | null;
   colorIndex: number | null;
   dateLabel: string;
@@ -68,7 +69,7 @@ export function BookingsBoard({ ready, weeks }: { ready: WalkCard[]; weeks: Week
         />
       )}
 
-      {/* Upcoming, week by week — view/edit only (can't complete a future walk) */}
+      {/* Upcoming, week by week — completable too (admin can mark any walk done) */}
       {weeks.map((wk) => (
         <Section
           key={wk.key}
@@ -78,7 +79,7 @@ export function BookingsBoard({ ready, weeks }: { ready: WalkCard[]; weeks: Week
           selected={selected}
           onToggle={toggle}
           onSelectAll={(on) => setMany(wk.walks.map((w) => w.id), on)}
-          canComplete={false}
+          canComplete
         />
       ))}
 
@@ -159,11 +160,12 @@ function WalkRow({
       )}
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 font-semibold">
-          {w.client}
+          <Icon name="paw" className="h-4 w-4 shrink-0 text-brand" />
+          {w.pets}
           <ServiceBadge name={w.service ?? "Walk"} colorIndex={w.colorIndex} />
         </p>
         <p className="text-sm text-muted">
-          {w.dateLabel} · {w.numDogs} dog{w.numDogs > 1 ? "s" : ""} · {w.priceLabel}
+          {w.owner} · {w.dateLabel} · {w.priceLabel}
           {w.worker ? ` · ${w.worker}` : ""}
         </p>
         {error && <p className="text-xs text-danger">{error}</p>}
