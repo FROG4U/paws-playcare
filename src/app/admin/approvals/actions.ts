@@ -6,8 +6,7 @@ import { requireRole } from "@/lib/auth";
 import { notify } from "@/lib/notifications";
 import { sendApprovalEmail } from "@/lib/account-emails";
 import { NOTIF_TYPE, ROLES, USER_STATUS, BOOKING_SLOTS } from "@/lib/constants";
-
-const VALID_SLOTS = new Set<string>(BOOKING_SLOTS.map((s) => s.key));
+import { getServices, requestedWalkOptions } from "@/lib/services";
 
 // Edit a pending client's requested walk schedule before approving them — the
 // admin can change each requested day/slot, add or remove one, and adjust the
@@ -23,11 +22,29 @@ export async function updateRequestedWalks(
     return { ok: false, error: "Client not found." };
   }
 
-  // Keep only known slot keys, de-duplicated, in the canonical week order.
-  const clean = BOOKING_SLOTS.map((s) => s.key).filter((k) => slots.includes(k));
+  // Valid = a walk the business currently offers ("Field Play — Monday (AM)"),
+  // or something already on this client's registration (a service since
+  // changed, or an old-style MON_AM key) so editing never destroys their ask.
+  const offered = requestedWalkOptions(await getServices());
+  const rank = new Map(offered.map((o, i) => [o.value, i]));
+  let existing: string[] = [];
+  try {
+    existing = JSON.parse(client.regSlots || "[]");
+  } catch {}
+  const allowed = new Set<string>([
+    ...offered.map((o) => o.value),
+    ...existing,
+    ...BOOKING_SLOTS.map((s) => s.key),
+  ]);
   for (const s of slots) {
-    if (!VALID_SLOTS.has(s)) return { ok: false, error: "Unknown walk slot." };
+    if (!allowed.has(s)) return { ok: false, error: "Unknown walk slot." };
   }
+
+  // De-duplicate, then order by the services list so the week reads in order;
+  // anything no longer offered keeps its position at the end.
+  const clean = [...new Set(slots)].sort(
+    (a, b) => (rank.get(a) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b) ?? Number.MAX_SAFE_INTEGER)
+  );
 
   let start: Date | null = null;
   if (startDate) {

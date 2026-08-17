@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ROLES, USER_STATUS } from "@/lib/constants";
+import { getServices, requestedWalkOptions } from "@/lib/services";
 import { formatDate, dayKey } from "@/lib/dates";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
@@ -7,11 +8,18 @@ import { ApprovalButtons } from "./ApprovalButtons";
 import { RequestedWalksEditor } from "./RequestedWalksEditor";
 
 export default async function ApprovalsPage() {
-  const pending = await prisma.user.findMany({
-    where: { role: ROLES.CLIENT, status: USER_STATUS.PENDING },
-    include: { dogs: true },
-    orderBy: { createdAt: "asc" },
-  });
+  const [pending, services] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: ROLES.CLIENT, status: USER_STATUS.PENDING },
+      include: { dogs: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    getServices(),
+  ]);
+
+  // The walks on offer right now (Field Play Mon–Wed, Walks Thu–Fri, …) —
+  // exactly what the client saw when they signed up.
+  const slotOptions = requestedWalkOptions(services).map((o) => o.value);
 
   return (
     <div className="space-y-5">
@@ -66,6 +74,7 @@ export default async function ApprovalsPage() {
             return (
               <RequestedWalksEditor
                 userId={c.id}
+                options={slotOptions}
                 initialSlots={reqSlots}
                 initialStart={c.regStartDate ? dayKey(c.regStartDate) : null}
               />

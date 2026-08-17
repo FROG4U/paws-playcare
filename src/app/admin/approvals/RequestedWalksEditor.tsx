@@ -2,17 +2,23 @@
 
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
-import { BOOKING_SLOTS } from "@/lib/constants";
+import { BOOKING_SLOT_LABELS } from "@/lib/constants";
 import { updateRequestedWalks } from "./actions";
 
-const SLOT_KEYS = BOOKING_SLOTS.map((s) => s.key);
+// What a stored slot should read as. Sign-up saves the readable label itself
+// ("Field Play — Monday (AM)"), but very old accounts hold a key ("MON_AM").
+function labelFor(value: string) {
+  return BOOKING_SLOT_LABELS[value] ?? value;
+}
 
 export function RequestedWalksEditor({
   userId,
+  options,
   initialSlots,
   initialStart,
 }: {
   userId: string;
+  options: string[]; // the services on offer, e.g. "Field Play — Monday (AM)"
   initialSlots: string[];
   initialStart: string | null; // yyyy-mm-dd
 }) {
@@ -27,11 +33,16 @@ export function RequestedWalksEditor({
     JSON.stringify(slots) !== JSON.stringify(initialSlots) ||
     (start || "") !== (initialStart ?? "");
 
-  // First slot not already chosen — used when adding a new walk row.
-  const firstFree = SLOT_KEYS.find((k) => !slots.includes(k)) ?? SLOT_KEYS[0];
+  // A slot this client asked for that the business no longer offers (service
+  // renamed, day dropped, or an old-style key) still has to appear in its own
+  // dropdown — otherwise the browser would silently switch it to another walk.
+  const optionsFor = (value: string) =>
+    options.includes(value) ? options : [...options, value];
 
-  function setSlotAt(i: number, key: string) {
-    setSlots((prev) => prev.map((s, idx) => (idx === i ? key : s)));
+  const firstFree = options.find((o) => !slots.includes(o)) ?? options[0] ?? "";
+
+  function setSlotAt(i: number, value: string) {
+    setSlots((prev) => prev.map((s, idx) => (idx === i ? value : s)));
     setSaved(false);
   }
   function removeSlotAt(i: number) {
@@ -39,6 +50,7 @@ export function RequestedWalksEditor({
     setSaved(false);
   }
   function addSlot() {
+    if (!firstFree) return;
     setSlots((prev) => [...prev, firstFree]);
     setSaved(false);
   }
@@ -86,7 +98,7 @@ export function RequestedWalksEditor({
             <div className="mt-1 flex flex-wrap gap-1.5">
               {slots.map((s, i) => (
                 <span key={`${s}-${i}`} className="badge bg-surface text-brand-dark">
-                  {BOOKING_SLOTS.find((b) => b.key === s)?.label ?? s}
+                  {labelFor(s)}
                 </span>
               ))}
             </div>
@@ -108,6 +120,12 @@ export function RequestedWalksEditor({
       {/* Edit view — each requested walk on its own row */}
       {editing && (
         <div className="mt-2 space-y-2">
+          {options.length === 0 && (
+            <p className="text-xs text-warn">
+              No active services — add one on the Services page first.
+            </p>
+          )}
+
           {slots.map((s, i) => (
             <div key={i} className="flex items-center gap-2">
               <select
@@ -115,8 +133,11 @@ export function RequestedWalksEditor({
                 onChange={(e) => setSlotAt(i, e.target.value)}
                 className="input flex-1 py-1.5 text-sm"
               >
-                {BOOKING_SLOTS.map((b) => (
-                  <option key={b.key} value={b.key}>{b.label}</option>
+                {optionsFor(s).map((o) => (
+                  <option key={o} value={o}>
+                    {labelFor(o)}
+                    {options.includes(o) ? "" : " (no longer offered)"}
+                  </option>
                 ))}
               </select>
               <button
@@ -130,13 +151,15 @@ export function RequestedWalksEditor({
             </div>
           ))}
 
-          <button
-            type="button"
-            onClick={addSlot}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
-          >
-            <Icon name="plus" className="h-3.5 w-3.5" /> Add a walk
-          </button>
+          {firstFree && (
+            <button
+              type="button"
+              onClick={addSlot}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
+            >
+              <Icon name="plus" className="h-3.5 w-3.5" /> Add a walk
+            </button>
+          )}
 
           <label className="mt-1 block">
             <span className="mb-1 block text-xs font-semibold text-muted">Preferred start date</span>

@@ -41,6 +41,35 @@ export function serviceForName<T extends { id: string; name: string }>(
   );
 }
 
+export const DAY_NAMES: Record<number, string> = {
+  1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday",
+  5: "Friday", 6: "Saturday", 7: "Sunday",
+};
+export const SLOT_TAG: Record<string, string> = { AM: "AM", LUNCH: "lunch", PM: "PM" };
+export const SLOT_WORDS: Record<string, string> = {
+  AM: "mornings", LUNCH: "lunch time", PM: "afternoons",
+};
+
+type SlotService = { name: string; daysOfWeek: string; timeSlot: string; active: boolean };
+
+// The walk a client can ask for at sign-up: one per service day, e.g.
+// "Field Play — Monday (AM)". The label IS the stored value (registration has
+// always saved the readable label), so the admin's approvals editor and the
+// sign-up form must build these the same way — hence this shared helper.
+export function requestedWalkOptions(services: SlotService[]) {
+  const out: { value: string; serviceName: string; day: number }[] = [];
+  for (const s of services.filter((s) => s.active)) {
+    for (const d of serviceDays(s)) {
+      out.push({
+        value: `${s.name} — ${DAY_NAMES[d] ?? `Day ${d}`} (${SLOT_TAG[s.timeSlot] ?? s.timeSlot})`,
+        serviceName: s.name,
+        day: d,
+      });
+    }
+  }
+  return out;
+}
+
 export function serviceDays(service: { daysOfWeek: string }): number[] {
   try {
     const arr = JSON.parse(service.daysOfWeek);

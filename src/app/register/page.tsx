@@ -2,14 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { getSession } from "@/lib/auth";
-import { getServices, serviceDays } from "@/lib/services";
+import {
+  getServices,
+  requestedWalkOptions,
+  DAY_NAMES,
+  SLOT_WORDS,
+} from "@/lib/services";
 import { RegisterForm, type SlotGroup } from "./RegisterForm";
-
-const DAY_NAMES: Record<number, string> = {
-  1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday",
-};
-const SLOT_WORDS: Record<string, string> = { AM: "mornings", LUNCH: "lunch time", PM: "afternoons" };
-const SLOT_TAG: Record<string, string> = { AM: "AM", LUNCH: "lunch", PM: "PM" };
 
 export default async function RegisterPage() {
   if (await getSession()) redirect("/dashboard");
@@ -21,9 +20,10 @@ export default async function RegisterPage() {
     .map((s) => ({
       name: s.name,
       timeSlotLabel: SLOT_WORDS[s.timeSlot] ?? s.timeSlot,
-      options: serviceDays(s).map((d) => ({
-        value: `${s.name} — ${DAY_NAMES[d]} (${SLOT_TAG[s.timeSlot] ?? s.timeSlot})`,
-        day: DAY_NAMES[d] ?? `Day ${d}`,
+      // Same option values the admin sees on the approvals card.
+      options: requestedWalkOptions([s]).map((o) => ({
+        value: o.value,
+        day: DAY_NAMES[o.day] ?? `Day ${o.day}`,
       })),
     }))
     .filter((g) => g.options.length > 0);
