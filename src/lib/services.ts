@@ -56,18 +56,43 @@ type SlotService = { name: string; daysOfWeek: string; timeSlot: string; active:
 // "Field Play — Monday (AM)". The label IS the stored value (registration has
 // always saved the readable label), so the admin's approvals editor and the
 // sign-up form must build these the same way — hence this shared helper.
-export function requestedWalkOptions(services: SlotService[]) {
-  const out: { value: string; serviceName: string; day: number }[] = [];
+export function requestedWalkOptions<T extends SlotService>(services: T[]) {
+  const out: { value: string; service: T; day: number }[] = [];
   for (const s of services.filter((s) => s.active)) {
     for (const d of serviceDays(s)) {
       out.push({
         value: `${s.name} — ${DAY_NAMES[d] ?? `Day ${d}`} (${SLOT_TAG[s.timeSlot] ?? s.timeSlot})`,
-        serviceName: s.name,
+        service: s,
         day: d,
       });
     }
   }
   return out;
+}
+
+const LEGACY_DAY: Record<string, number> = {
+  MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 7,
+};
+
+// Turn one stored registration slot back into the service + weekday it means.
+// Accepts today's label ("Field Play — Monday (AM)") and the old key form
+// ("MON_AM") kept by accounts created before services became editable.
+export function resolveRequestedWalk<T extends SlotService>(
+  services: T[],
+  value: string
+): { service: T; day: number } | null {
+  const match = requestedWalkOptions(services).find((o) => o.value === value);
+  if (match) return { service: match.service, day: match.day };
+
+  const legacy = /^([A-Z]{3})_(AM|LUNCH|PM)$/.exec(value);
+  if (legacy) {
+    const day = LEGACY_DAY[legacy[1]];
+    const service = services.find(
+      (s) => s.active && s.timeSlot === legacy[2] && serviceDays(s).includes(day)
+    );
+    if (service && day) return { service, day };
+  }
+  return null;
 }
 
 export function serviceDays(service: { daysOfWeek: string }): number[] {

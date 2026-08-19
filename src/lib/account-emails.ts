@@ -21,15 +21,21 @@ export async function sendWelcomeEmail(to: string, name: string) {
   return sendEmail({ to, subject: "Welcome to Paws Playcare 🐾", html });
 }
 
-// Sent when an admin approves the client's account.
-export async function sendApprovalEmail(to: string, name: string) {
+// Sent when an admin approves the client's account. `schedule` is the one-line
+// summary of the regular walks set up from their registration, when there are
+// any ("Field Play — 36 walks booked, starting Wed 19 Aug, billed weekly.").
+export async function sendApprovalEmail(to: string, name: string, schedule?: string | null) {
   const first = name.split(" ")[0] || "there";
   const html = emailShell(
     "Your account is approved! 🎉",
     p(`Hi ${first},`) +
       p("Great news — your Paws Playcare account has been approved.") +
-      p("Add a payment card and you're ready to book walks and play sessions.") +
-      p(btn(`${baseUrl()}/client/payment`, "Add a card & get started"))
+      (schedule
+        ? p(`We've booked in the regular walks you asked for: <strong>${schedule}</strong>`) +
+          p("Add a payment card so they can go ahead — you can see the full schedule in your account.") +
+          p(btn(`${baseUrl()}/client/payment`, "Add a card")) 
+        : p("Add a payment card and you're ready to book walks and play sessions.") +
+          p(btn(`${baseUrl()}/client/payment`, "Add a card & get started")))
   );
   return sendEmail({ to, subject: "You're approved — welcome to Paws Playcare 🎉", html });
 }

@@ -3,10 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
-import { notify } from "@/lib/notifications";
+import { notify, notifyAdmins } from "@/lib/notifications";
 import { sendApprovalEmail } from "@/lib/account-emails";
 import { NOTIF_TYPE, ROLES, USER_STATUS, BOOKING_SLOTS } from "@/lib/constants";
 import { getServices, requestedWalkOptions } from "@/lib/services";
+import {
+  createBookingsFromRegistration,
+  registrationBookingSummary,
+} from "@/lib/registration-booking";
 
 // Edit a pending client's requested walk schedule before approving them — the
 // admin can change each requested day/slot, add or remove one, and adjust the
@@ -78,22 +82,42 @@ export async function approveClient(userId: string) {
     },
   });
 
+  // Set up the walks they asked for at sign-up as an ongoing repeat booking on
+  // their pay cycle, so an approved client already has their regular schedule.
+  const booked = await createBookingsFromRegistration(userId, admin.id);
+  const summary = registrationBookingSummary(booked, client.payCadence);
+
   await notify({
     userId,
     type: NOTIF_TYPE.ACCOUNT_APPROVED,
     title: "Your account is approved! 🎉",
-    body: "Add a payment card to start booking walks.",
-    link: "/client/payment",
+    body: summary
+      ? `Your regular walks are booked in: ${summary} Add a payment card to make sure they go ahead.`
+      : "Add a payment card to start booking walks.",
+    link: summary ? "/client/walks" : "/client/payment",
   });
 
   try {
-    await sendApprovalEmail(client.email, client.name);
+    await sendApprovalEmail(client.email, client.name, summary);
   } catch {
     // ignore — approval succeeds regardless of email
   }
 
+  if (booked.unresolved.length > 0) {
+    // A requested walk no live service covers (service renamed or its day
+    // dropped since they signed up) — the admin needs to book that one.
+    await notifyAdmins({
+      type: NOTIF_TYPE.BOOKING_CREATED,
+      title: `${client.name}: ${booked.unresolved.length} requested walk${booked.unresolved.length > 1 ? "s" : ""} couldn't be booked`,
+      body: `No service currently runs: ${booked.unresolved.join(", ")}. Set these up by hand if they still apply.`,
+      link: `/admin/clients/${userId}`,
+    });
+  }
+
   revalidatePath("/admin/approvals");
   revalidatePath("/admin");
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/calendar");
 }
 
 export async function rejectClient(userId: string, reason?: string) {
