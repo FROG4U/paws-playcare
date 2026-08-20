@@ -10,6 +10,8 @@ import { PauseControls } from "./PauseControls";
 import { PasswordReset } from "./PasswordReset";
 import { CadenceSelect } from "./CadenceSelect";
 import { ClientWalks, type WalkLite } from "./ClientWalks";
+import { SetUpWalks } from "./SetUpWalks";
+import { CADENCE_WORD } from "@/lib/registration-booking";
 
 const EDITABLE_WALK = [WALK_STATUS.REQUESTED, WALK_STATUS.ASSIGNED, WALK_STATUS.ACCEPTED] as string[];
 
@@ -179,7 +181,16 @@ export default async function ClientDetailPage({
           <Icon name="calendar" className="h-5 w-5 text-brand" />
           Walks
         </h2>
-        <ClientWalks upcoming={upcomingWalks} past={pastWalks} />
+        {upcomingWalks.length === 0 && pastWalks.length === 0 && regSlots.length > 0 ? (
+          <SetUpWalks
+            clientId={client.id}
+            slots={regSlots}
+            hasCard={hasCard}
+            cadenceWord={CADENCE_WORD[client.payCadence] ?? client.payCadence.toLowerCase()}
+          />
+        ) : (
+          <ClientWalks upcoming={upcomingWalks} past={pastWalks} />
+        )}
       </div>
 
       {/* Dogs */}

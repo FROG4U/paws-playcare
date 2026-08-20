@@ -125,6 +125,19 @@ using your `CRON_SECRET`:
 done, finalize = send invoices, charge = take payment, maintenance =
 card-expiry + unpaid blocks.)
 
+**One-off catch-up (not a scheduled task).** Clients approved before approval
+started booking their schedule automatically can be caught up in one go —
+fetch this URL once (Plesk task set to "Run Now", or curl):
+
+```
+https://pawsplaycare.co.uk/api/cron/setup-regular-walks?key=CRON_SECRET
+```
+
+It books the walks each client asked for at sign-up, from today, but only for
+active clients who already have a card and no bookings at all. The response
+lists who was set up, who was skipped and why, and how many are still waiting
+on a card. Safe to run twice — anyone already booked is skipped.
+
 ---
 
 ## STEP 7 — Domain + HTTPS + Stripe webhook

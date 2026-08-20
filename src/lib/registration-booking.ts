@@ -20,7 +20,7 @@ import {
 } from "./services";
 import { blockedDateKeys, expandRecurring } from "./availability";
 import { atUtcMidnight, dayKey, formatDate } from "./dates";
-import { BOOKING_STATUS, BOOKING_TYPE, PAY_CADENCE, WALK_STATUS } from "./constants";
+import { BOOKING_STATUS, BOOKING_TYPE, PAY_CADENCE, USER_STATUS, WALK_STATUS } from "./constants";
 
 // Matches the client booking form and the rollover job: generate 12 weeks up
 // front, then the daily maintenance cron keeps topping it back up.
@@ -38,7 +38,7 @@ export type RegistrationBookingResult = {
   firstWalk: Date | null;
   services: string[];
   unresolved: string[]; // requested slots no live service could satisfy
-  skipped: "none" | "already-booked" | "no-slots" | "no-dogs";
+  skipped: "none" | "already-booked" | "no-slots" | "no-dogs" | "no-card" | "not-active";
 };
 
 const EMPTY: RegistrationBookingResult = {
@@ -46,24 +46,36 @@ const EMPTY: RegistrationBookingResult = {
   services: [], unresolved: [], skipped: "none",
 };
 
+export type RegistrationBookingOptions = {
+  adminId?: string;
+  now?: Date;
+  // Setting up an existing client (rather than approving a new one): they must
+  // already have a card on file, and the account must be active.
+  requireCard?: boolean;
+  requireActive?: boolean;
+};
+
 // Create the client's regular bookings from what they asked for at sign-up.
 // Safe to call more than once: a client who already has a booking is left
 // alone, so re-approving never doubles anyone up.
 export async function createBookingsFromRegistration(
   clientId: string,
-  adminId?: string,
-  now: Date = new Date()
+  opts: RegistrationBookingOptions = {}
 ): Promise<RegistrationBookingResult> {
+  const { adminId, now = new Date(), requireCard = false, requireActive = false } = opts;
   const client = await prisma.user.findUnique({
     where: { id: clientId },
     select: {
       id: true, regSlots: true, regStartDate: true,
+      status: true, paymentMethodId: true,
       dogs: { select: { id: true } },
       _count: { select: { bookings: true } },
     },
   });
   if (!client) return EMPTY;
   if (client._count.bookings > 0) return { ...EMPTY, skipped: "already-booked" };
+  if (requireActive && client.status !== USER_STATUS.ACTIVE) return { ...EMPTY, skipped: "not-active" };
+  if (requireCard && !client.paymentMethodId) return { ...EMPTY, skipped: "no-card" };
   if (client.dogs.length === 0) return { ...EMPTY, skipped: "no-dogs" };
 
   let requested: string[] = [];

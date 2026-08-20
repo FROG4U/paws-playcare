@@ -84,7 +84,7 @@ export async function approveClient(userId: string) {
 
   // Set up the walks they asked for at sign-up as an ongoing repeat booking on
   // their pay cycle, so an approved client already has their regular schedule.
-  const booked = await createBookingsFromRegistration(userId, admin.id);
+  const booked = await createBookingsFromRegistration(userId, { adminId: admin.id });
   const summary = registrationBookingSummary(booked, client.payCadence);
 
   await notify({

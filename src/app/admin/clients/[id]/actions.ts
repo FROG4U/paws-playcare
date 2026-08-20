@@ -9,6 +9,10 @@ import { notify } from "@/lib/notifications";
 import { dayKey, atUtcMidnight } from "@/lib/dates";
 import { poundsToPence } from "@/lib/money";
 import { rolloverOngoingBookings } from "@/lib/rollover";
+import {
+  createBookingsFromRegistration,
+  registrationBookingSummary,
+} from "@/lib/registration-booking";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -296,4 +300,59 @@ export async function dismissPauseRequest(clientId: string): Promise<Result> {
   });
   refresh(clientId);
   return { ok: true };
+}
+
+// Set up an existing client's regular walks from the slots they asked for at
+// sign-up — for accounts approved before approval did this automatically.
+// Starts from today (never backdates), on their own pay cycle, and only for a
+// client who already has a card on file.
+export async function setUpRegularWalks(
+  clientId: string
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const admin = await requireRole([ROLES.ADMIN]);
+  const client = await prisma.user.findUnique({
+    where: { id: clientId },
+    select: { id: true, name: true, email: true, role: true, payCadence: true },
+  });
+  if (!client || client.role !== ROLES.CLIENT) return { ok: false, error: "Client not found." };
+
+  const result = await createBookingsFromRegistration(clientId, {
+    adminId: admin.id,
+    requireCard: true,
+    requireActive: true,
+  });
+
+  if (result.bookingsCreated === 0) {
+    const why: Record<string, string> = {
+      "already-booked": "This client already has bookings — nothing to set up.",
+      "no-card": "No payment card on file yet. Add a card first, then set up their walks.",
+      "no-dogs": "This client has no dogs on their account.",
+      "no-slots": "They didn't request any walks at sign-up — book them in manually.",
+      "not-active": "The account isn't active, so walks can't be booked.",
+    };
+    return {
+      ok: false,
+      error:
+        why[result.skipped] ??
+        "Couldn't work out a schedule from their requested walks — book them in manually.",
+    };
+  }
+
+  const summary = registrationBookingSummary(result, client.payCadence);
+  await notify({
+    userId: client.id,
+    type: NOTIF_TYPE.BOOKING_ACCEPTED,
+    title: "Your regular walks are booked in 🐾",
+    body: summary ?? "Your regular walks are now set up.",
+    link: "/client/walks",
+  });
+
+  refresh(clientId);
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/calendar");
+
+  const tail = result.unresolved.length
+    ? ` ${result.unresolved.length} requested walk${result.unresolved.length > 1 ? "s" : ""} (${result.unresolved.join(", ")}) had no matching service — book those by hand.`
+    : "";
+  return { ok: true, message: `${summary ?? "Walks set up."}${tail}` };
 }
