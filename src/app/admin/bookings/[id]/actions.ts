@@ -380,3 +380,147 @@ export async function resumeBooking(bookingId: string): Promise<EditResult> {
   refresh(bookingId);
   return { ok: true, message: `Booking resumed${created ? ` — ${created} walk${created > 1 ? "s" : ""} scheduled` : ""}.` };
 }
+
+const DAY_LABEL: Record<number, string> = {
+  1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday",
+  5: "Friday", 6: "Saturday", 7: "Sunday",
+};
+
+const listDays = (days: number[]) => {
+  const names = [...days].sort().map((d) => DAY_LABEL[d] ?? `Day ${d}`);
+  return names.length <= 1
+    ? names[0] ?? ""
+    : `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+};
+
+// Change which weekdays a repeat booking runs on, from a given date onwards.
+//
+// Cancelling every Monday means more than deleting those walks: unless the
+// booking's own pattern changes, the nightly rollover puts them straight back.
+// So this updates daysOfWeek *and* fixes up the walks —
+//   • a day taken off  → its upcoming walks (from `fromDate`) are cancelled, no charge
+//   • a day added      → walks are generated out to the usual 12-week horizon
+// Walks already completed are left alone; past walks are never touched.
+export async function setBookingDays(
+  bookingId: string,
+  days: number[],
+  fromDate?: string | null
+): Promise<EditResult> {
+  const admin = await requireRole([ROLES.ADMIN]);
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { walks: { select: { id: true, date: true, status: true } } },
+  });
+  if (!booking) return { ok: false, error: "Booking not found." };
+  if (booking.type !== BOOKING_TYPE.RECURRING) {
+    return { ok: false, error: "Only a repeat booking has weekly days — add or remove walks individually." };
+  }
+
+  const service = await serviceForBooking(booking);
+  if (!service) return { ok: false, error: "That service is no longer available." };
+  const svcDays = serviceDays(service);
+
+  const wanted = [...new Set(days)].filter((d) => Number.isInteger(d)).sort();
+  const bad = wanted.filter((d) => !svcDays.includes(d));
+  if (bad.length) {
+    return {
+      ok: false,
+      error: `${service.name} doesn't run on ${listDays(bad)} — it runs ${listDays(svcDays)}.`,
+    };
+  }
+
+  let current: number[] = [];
+  try {
+    const parsed = JSON.parse(booking.daysOfWeek);
+    if (Array.isArray(parsed)) current = parsed;
+  } catch {}
+
+  const removed = current.filter((d) => !wanted.includes(d));
+  const added = wanted.filter((d) => !current.includes(d));
+  if (removed.length === 0 && added.length === 0) {
+    return { ok: false, error: "Those are already the days on this booking." };
+  }
+
+  const todayKey = dayKey(new Date());
+  const fromKey = fromDate && fromDate > todayKey ? fromDate : todayKey;
+
+  // Take days off: cancel their upcoming walks (no charge — the client didn't
+  // cancel late, we changed the plan).
+  let cancelled = 0;
+  if (removed.length) {
+    const isoWeekdayOf = (d: Date) => ((d.getUTCDay() + 6) % 7) + 1;
+    const doomed = booking.walks.filter(
+      (w) =>
+        EDITABLE.includes(w.status) &&
+        dayKey(w.date) >= fromKey &&
+        removed.includes(isoWeekdayOf(w.date))
+    );
+    if (doomed.length) {
+      await prisma.walk.updateMany({
+        where: { id: { in: doomed.map((w) => w.id) } },
+        data: {
+          status: WALK_STATUS.CANCELLED,
+          cancelledAt: new Date(),
+          cancelledById: admin.id,
+          cancelReason: `${listDays(removed)} removed from the regular booking`,
+          noCharge: true,
+        },
+      });
+      cancelled = doomed.length;
+    }
+  }
+
+  // Add days: fill them in to the same horizon the rollover keeps.
+  let created = 0;
+  if (added.length) {
+    const endIso = dayKey(new Date(Date.now() + (ONGOING_HORIZON_DAYS - 1) * 86400000));
+    if (fromKey <= endIso) {
+      const bhKeys = await blockedDateKeys();
+      const { dates } = expandRecurring(added, fromKey, endIso, bhKeys);
+      const activeKeys = new Set(
+        booking.walks
+          .filter((w) => w.status !== WALK_STATUS.CANCELLED)
+          .map((w) => dayKey(w.date))
+      );
+      const toCreate = dates.filter((d) => !activeKeys.has(dayKey(d)));
+      if (toCreate.length) {
+        const price = servicePrice(service, booking.numDogs);
+        await prisma.walk.createMany({
+          data: toCreate.map((d) => ({
+            bookingId,
+            clientId: booking.clientId,
+            date: d,
+            timeSlot: booking.timeSlot,
+            serviceName: booking.serviceName,
+            numDogs: booking.numDogs,
+            price,
+            status: WALK_STATUS.REQUESTED,
+          })),
+        });
+        created = toCreate.length;
+      }
+    }
+  }
+
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: { daysOfWeek: JSON.stringify(wanted) },
+  });
+
+  const parts = [
+    removed.length ? `${listDays(removed)} removed${cancelled ? ` (${cancelled} walk${cancelled > 1 ? "s" : ""} cancelled, no charge)` : ""}` : null,
+    added.length ? `${listDays(added)} added${created ? ` (${created} walk${created > 1 ? "s" : ""} booked)` : ""}` : null,
+  ].filter(Boolean);
+
+  await notify({
+    userId: booking.clientId,
+    type: NOTIF_TYPE.BOOKING_UPDATED,
+    title: "Your regular walks have changed",
+    body: `${booking.serviceName ?? "Your booking"}: ${parts.join("; ")}. It now runs every ${listDays(wanted) || "— no days"}.`,
+    link: "/client/walks",
+  });
+
+  refresh(bookingId);
+  revalidatePath("/admin/calendar");
+  return { ok: true, message: `${parts.join("; ")}.` };
+}

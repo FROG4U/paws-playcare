@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatDate, dayKey } from "@/lib/dates";
-import { getServices, serviceForName } from "@/lib/services";
+import { getServices, serviceForName, serviceDays } from "@/lib/services";
 import { serviceColorMap } from "@/lib/service-colors";
 import { WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
 import { PageHeader } from "@/components/ui";
@@ -59,6 +59,12 @@ export default async function BookingEditPage({ params }: { params: Promise<{ id
     noCharge: w.noCharge,
   }));
 
+  let bookingDays: number[] = [];
+  try {
+    const parsed = JSON.parse(booking.daysOfWeek);
+    if (Array.isArray(parsed)) bookingDays = parsed;
+  } catch {}
+
   const paused = booking.status === "PAUSED";
   const isPending = booking.reviewedAt == null && booking.status === "ACTIVE";
 
@@ -106,6 +112,10 @@ export default async function BookingEditPage({ params }: { params: Promise<{ id
         isPending={isPending}
         pricePerDog={service ? service.pricePerDog : null}
         paused={paused}
+        recurring={booking.type === "RECURRING"}
+        bookingDays={bookingDays}
+        serviceDays={service ? serviceDays(service) : []}
+        todayIso={dayKey(new Date())}
       />
     </div>
   );

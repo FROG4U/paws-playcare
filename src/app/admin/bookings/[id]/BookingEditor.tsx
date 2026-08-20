@@ -12,6 +12,7 @@ import {
   setWalkNoCharge,
   pauseBooking,
   resumeBooking,
+  setBookingDays,
   type EditResult,
 } from "./actions";
 
@@ -27,6 +28,10 @@ export type WalkLite = {
 };
 export type DogLite = { id: string; name: string };
 
+const DAY_NAMES: Record<number, string> = {
+  1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun",
+};
+
 export function BookingEditor({
   bookingId,
   dogs,
@@ -36,6 +41,10 @@ export function BookingEditor({
   isPending,
   pricePerDog,
   paused,
+  recurring,
+  bookingDays,
+  serviceDays,
+  todayIso,
 }: {
   bookingId: string;
   dogs: DogLite[];
@@ -45,6 +54,10 @@ export function BookingEditor({
   isPending: boolean;
   pricePerDog: number | null;
   paused: boolean;
+  recurring: boolean;
+  bookingDays: number[];   // weekdays this booking currently runs (ISO, Mon=1)
+  serviceDays: number[];   // weekdays the service offers
+  todayIso: string;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +68,10 @@ export function BookingEditor({
     Object.fromEntries(walks.map((w) => [w.id, w.dateIso]))
   );
   const [addDate, setAddDate] = useState("");
+  const [daySel, setDaySel] = useState<Set<number>>(() => new Set(bookingDays));
+  const [daysFrom, setDaysFrom] = useState("");
+  const daysDirty =
+    daySel.size !== bookingDays.length || bookingDays.some((d) => !daySel.has(d));
 
   function run(fn: () => Promise<EditResult | void>) {
     setError(null);
@@ -143,6 +160,64 @@ export function BookingEditor({
           </button>
         )}
       </section>
+
+      {/* Which weekdays this repeat booking runs on */}
+      {recurring && (
+        <section className="card space-y-3">
+          <h2 className="text-base font-bold">Repeat days</h2>
+          <p className="text-sm text-muted">
+            Take a day off and its upcoming walks are cancelled with no charge — and it
+            won't come back. Add a day and it's booked out for the next 12 weeks.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {serviceDays.map((d) => {
+              const on = daySel.has(d);
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() =>
+                    setDaySel((prev) => {
+                      const n = new Set(prev);
+                      n.has(d) ? n.delete(d) : n.add(d);
+                      return n;
+                    })
+                  }
+                  className={
+                    on
+                      ? "rounded-full bg-brand px-3.5 py-1.5 text-sm font-bold text-white"
+                      : "rounded-full border border-border px-3.5 py-1.5 text-sm font-semibold text-muted hover:border-brand hover:text-brand"
+                  }
+                >
+                  {DAY_NAMES[d] ?? d}
+                </button>
+              );
+            })}
+          </div>
+
+          <label className="block text-sm">
+            <span className="mb-1 block text-xs font-semibold text-muted">
+              From (leave blank for today)
+            </span>
+            <input
+              type="date"
+              min={todayIso}
+              value={daysFrom}
+              onChange={(e) => setDaysFrom(e.target.value)}
+              className="input py-1.5 text-sm sm:max-w-xs"
+            />
+          </label>
+
+          <button
+            onClick={() => run(() => setBookingDays(bookingId, [...daySel], daysFrom || null))}
+            disabled={pending || !daysDirty}
+            className="btn-primary text-sm disabled:opacity-50"
+          >
+            {pending ? "Saving…" : "Save repeat days"}
+          </button>
+        </section>
+      )}
 
       {/* Dogs */}
       <section className="card space-y-3">
