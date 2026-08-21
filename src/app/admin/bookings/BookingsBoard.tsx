@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { ServiceBadge } from "@/components/ServiceBadge";
-import { completeWalk, completeWalks, deleteWalk } from "./actions";
+import { completeWalk, completeWalks } from "./actions";
 
 export type WalkCard = {
   id: string;
@@ -153,8 +153,6 @@ function WalkRow({
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
-  const [typed, setTyped] = useState("");
   return (
     <div className={`card flex flex-wrap items-center gap-3 ${checked && canComplete ? "ring-2 ring-brand/40" : ""}`}>
       {canComplete && (
@@ -188,104 +186,6 @@ function WalkRow({
             {pending ? "…" : "Mark done"}
           </button>
         )}
-        <button
-          onClick={() => { setError(null); setTyped(""); setConfirming(true); }}
-          aria-label="Delete walk"
-          title="Delete walk"
-          className="rounded-md p-1.5 text-muted hover:bg-danger/10 hover:text-danger"
-        >
-          <Icon name="trash" className="h-4 w-4" />
-        </button>
-      </div>
-
-      {confirming && (
-        <DeleteDialog
-          w={w}
-          typed={typed}
-          setTyped={setTyped}
-          pending={pending}
-          onCancel={() => setConfirming(false)}
-          onConfirm={() =>
-            start(async () => {
-              setError(null);
-              const r = await deleteWalk(w.id, typed.trim());
-              if (r.ok) setConfirming(false);
-              else setError(r.error);
-            })
-          }
-          error={error}
-        />
-      )}
-    </div>
-  );
-}
-
-// Permanent delete needs the word typed out — there's no undo for this one.
-function DeleteDialog({
-  w,
-  typed,
-  setTyped,
-  pending,
-  onCancel,
-  onConfirm,
-  error,
-}: {
-  w: WalkCard;
-  typed: string;
-  setTyped: (v: string) => void;
-  pending: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-  error: string | null;
-}) {
-  const armed = typed.trim() === "DELETE";
-  return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-charcoal/50 p-4"
-      role="dialog"
-      aria-modal="true"
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-md space-y-3 rounded-2xl bg-surface p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="flex items-center gap-2 text-lg font-bold text-danger">
-          <Icon name="alert" className="h-5 w-5" />
-          Delete this walk?
-        </h3>
-        <p className="text-sm">
-          <strong>{w.pets}</strong> · {w.owner} · {w.dateLabel} · {w.priceLabel}
-        </p>
-        <p className="text-sm text-muted">
-          This removes it from the system permanently — it can't be undone. If it's on an
-          invoice that hasn't been paid, it comes off that invoice too.
-        </p>
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs font-semibold text-muted">
-            Type DELETE to confirm
-          </span>
-          <input
-            autoFocus
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder="DELETE"
-            className="input w-full"
-          />
-        </label>
-        {error && <p className="text-sm text-danger">{error}</p>}
-        <div className="flex justify-end gap-2 pt-1">
-          <button onClick={onCancel} disabled={pending} className="btn-ghost text-sm">
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={pending || !armed}
-            className="rounded-xl bg-danger px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-          >
-            {pending ? "Deleting…" : "Delete permanently"}
-          </button>
-        </div>
       </div>
     </div>
   );
