@@ -8,7 +8,7 @@ import { notify } from "@/lib/notifications";
 import { atUtcMidnight, formatDate, dayKey } from "@/lib/dates";
 import { getServices, serviceForName, serviceDays, servicePrice } from "@/lib/services";
 import { blockedDateKeys, checkBookable, expandRecurring } from "@/lib/availability";
-import { addCompletedWalkToInvoice } from "@/lib/billing";
+import { addCompletedWalkToInvoice, removeWalkFromInvoice } from "@/lib/billing";
 
 // How far ahead resuming a paused recurring booking regenerates walks.
 const ONGOING_HORIZON_DAYS = 12 * 7;
@@ -251,25 +251,10 @@ export async function setBookingDecision(
   return { ok: true };
 }
 
-// Remove a walk's line from its invoice, if that invoice is still open/unissued.
-// Deletes the invoice entirely if it becomes empty. (Mirrors undoComplete.)
+// Remove a walk's line from its invoice, while that invoice is still unpaid.
+// (Shared with the manual "Add days" screen — see lib/billing.)
 async function stripWalkFromInvoice(walkId: string) {
-  const item = await prisma.invoiceItem.findUnique({
-    where: { walkId },
-    include: { invoice: true },
-  });
-  if (!item) return;
-  // Leave it only once the money has actually been collected. An invoice that's
-  // issued but not yet charged (dueAt set, still OPEN) can still be reduced
-  // before the charge runs, so "no charge" works right up to collection.
-  if (item.invoice.status === "PAID" || item.invoice.paidAt) return;
-  await prisma.$transaction(async (tx) => {
-    await tx.invoiceItem.delete({ where: { id: item.id } });
-    const agg = await tx.invoiceItem.aggregate({ where: { invoiceId: item.invoiceId }, _sum: { amount: true } });
-    const remaining = agg._sum.amount ?? 0;
-    if (remaining === 0) await tx.invoice.delete({ where: { id: item.invoiceId } });
-    else await tx.invoice.update({ where: { id: item.invoiceId }, data: { subtotal: remaining, total: remaining } });
-  });
+  await removeWalkFromInvoice(walkId);
 }
 
 // Toggle "no charge" on a single walk. Turning it on also pulls the walk off its

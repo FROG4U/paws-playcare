@@ -203,3 +203,63 @@ export async function addCompletedWalkToInvoice(walkId: string): Promise<string 
   await recomputeTotals(invoice.id);
   return invoice.id;
 }
+
+// Has the money already been taken? Once an invoice is PAID nothing on it can
+// be changed here — that would need a refund in Stripe.
+function isCollected(invoice: { status: string; paidAt: Date | null }): boolean {
+  return invoice.status === INVOICE_STATUS.PAID || invoice.paidAt != null;
+}
+
+// Take a walk's line off its invoice (deleting the invoice if that empties it).
+// Works right up until the money is collected — an issued-but-uncharged invoice
+// can still be reduced.
+export async function removeWalkFromInvoice(walkId: string): Promise<boolean> {
+  const item = await prisma.invoiceItem.findUnique({
+    where: { walkId },
+    include: { invoice: true },
+  });
+  if (!item) return false;
+  if (isCollected(item.invoice)) return false;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.invoiceItem.delete({ where: { id: item.id } });
+    const agg = await tx.invoiceItem.aggregate({
+      where: { invoiceId: item.invoiceId },
+      _sum: { amount: true },
+    });
+    const remaining = agg._sum.amount ?? 0;
+    if (remaining === 0) await tx.invoice.delete({ where: { id: item.invoiceId } });
+    else
+      await tx.invoice.update({
+        where: { id: item.invoiceId },
+        data: { subtotal: remaining, total: remaining },
+      });
+  });
+  return true;
+}
+
+// Change what a walk costs after it's been invoiced: the walk, its invoice line
+// and the invoice total all move together. Refused once the invoice is paid.
+export async function repriceInvoicedWalk(
+  walkId: string,
+  amount: number
+): Promise<{ ok: true; invoiced: boolean } | { ok: false; error: string }> {
+  const walk = await prisma.walk.findUnique({
+    where: { id: walkId },
+    include: { invoiceItem: { include: { invoice: true } } },
+  });
+  if (!walk) return { ok: false, error: "Walk not found." };
+  if (walk.invoiceItem && isCollected(walk.invoiceItem.invoice)) {
+    return { ok: false, error: "That invoice has already been paid — refund it in Stripe instead." };
+  }
+
+  await prisma.walk.update({ where: { id: walkId }, data: { price: amount } });
+  if (!walk.invoiceItem) return { ok: true, invoiced: false };
+
+  await prisma.invoiceItem.update({
+    where: { id: walk.invoiceItem.id },
+    data: { amount },
+  });
+  await recomputeTotals(walk.invoiceItem.invoiceId);
+  return { ok: true, invoiced: true };
+}
