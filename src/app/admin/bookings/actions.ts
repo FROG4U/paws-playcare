@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { ROLES, NOTIF_TYPE, WALK_STATUS } from "@/lib/constants";
 import { notify } from "@/lib/notifications";
-import { addCompletedWalkToInvoice, nextPaymentDate } from "@/lib/billing";
+import { addCompletedWalkToInvoice, nextPaymentDate, removeWalkFromInvoice } from "@/lib/billing";
 import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 
@@ -126,6 +126,42 @@ export async function undoComplete(walkId: string): Promise<Result> {
       data: { status: WALK_STATUS.ACCEPTED, completedAt: null, completedById: null },
     });
   });
+
+  refresh();
+  return { ok: true };
+}
+
+// Permanently delete a walk. Unlike cancelling, nothing is left behind — so the
+// admin has to type DELETE to confirm (checked here too, not just in the UI).
+// A walk on an already-paid invoice can't be deleted: the money is collected and
+// the invoice has to keep matching what was charged.
+export async function deleteWalk(
+  walkId: string,
+  confirmation: string
+): Promise<Result> {
+  await requireRole([ROLES.ADMIN]);
+  if (confirmation !== "DELETE") {
+    return { ok: false, error: 'Type DELETE to confirm.' };
+  }
+
+  const walk = await prisma.walk.findUnique({
+    where: { id: walkId },
+    include: { invoiceItem: { include: { invoice: true } } },
+  });
+  if (!walk) return { ok: false, error: "That walk has already been deleted." };
+
+  const invoice = walk.invoiceItem?.invoice;
+  if (invoice && (invoice.status === "PAID" || invoice.paidAt)) {
+    return {
+      ok: false,
+      error: `That walk is on paid invoice ${invoice.number} — it can't be deleted. Refund it in Stripe instead.`,
+    };
+  }
+
+  // Still on an unpaid invoice: take the line off (and drop the invoice if it
+  // empties) before the walk goes.
+  if (walk.invoiceItem) await removeWalkFromInvoice(walkId);
+  await prisma.walk.delete({ where: { id: walkId } });
 
   refresh();
   return { ok: true };
