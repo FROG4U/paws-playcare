@@ -39,11 +39,13 @@ export function billingPeriodFor(cadence: string, day: Date | string): BillingPe
   return { start: monday, end: friday };
 }
 
-// When the card is actually charged for a period: the last day, at night (9pm
-// UTC — a few hours after the 7pm "final invoice" email so the client sees it
-// coming). The exact hour only matters relative to when the charge cron runs.
+// When the card is actually charged for a period: the last day at 19:00 UTC.
+// It has to sit *before* the nightly charge cron in real time — the job only
+// picks up invoices whose dueAt has passed. 19:00 UTC clears a 21:00 run in
+// both British Summer Time (21:00 BST = 20:00 UTC) and winter GMT, so Friday
+// money is collected on Friday all year round.
 export function dueAtFor(end: Date): Date {
-  return new Date(dayKey(end) + "T21:00:00.000Z");
+  return new Date(dayKey(end) + "T19:00:00.000Z");
 }
 
 // The next payment date for a client, for display ("Payment due Fri 8 Aug").
