@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServices } from "@/lib/services";
 import { serviceColorMap, paletteFor } from "@/lib/service-colors";
 import { dayKey, isoWeekday } from "@/lib/dates";
-import { WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
+import { WALK_STATUS, walkStatusBadge } from "@/lib/constants";
 import { PageHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 
@@ -168,7 +168,9 @@ export default async function CalendarPage({
                         <span
                           className={`flex items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[0.7rem] font-semibold ${dead ? "line-through opacity-50" : ""}`}
                           style={{ background: dead ? "#f1f5f9" : pal?.soft ?? "#eef2f7", color: dead ? "#94a3b8" : pal?.softText ?? "#475569" }}
-                          title={`${dogsLabel} · ${w.client.name} · ${w.serviceName ?? "Walk"} · ${WALK_STATUS_LABELS[w.status] ?? w.status}${w.worker ? ` · ${w.worker.name}` : ""}`}
+                          title={[dogsLabel, w.client.name, w.serviceName ?? "Walk", walkStatusBadge(w.status)]
+                            .filter(Boolean)
+                            .join(" · ")}
                         >
                           {done && <Icon name="check" className="h-3 w-3 shrink-0" />}
                           <span className="truncate">{dogsLabel}</span>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { ROLES, USER_STATUS, BOOKING_SLOT_LABELS, WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
+import { ROLES, USER_STATUS, BOOKING_SLOT_LABELS, WALK_STATUS, walkStatusBadge } from "@/lib/constants";
 import { formatDate, formatDateTime, dayKey } from "@/lib/dates";
 import { penceToPounds } from "@/lib/money";
 import { Icon } from "@/components/Icon";
@@ -54,7 +54,7 @@ export default async function ClientDetailPage({
     serviceName: w.serviceName,
     numDogs: w.numDogs,
     pricePounds: penceToPounds(w.price),
-    statusLabel: WALK_STATUS_LABELS[w.status] ?? w.status,
+    statusLabel: walkStatusBadge(w.status) ?? "",
     noCharge: w.noCharge,
     workerName: w.worker?.name ?? null,
     editable: EDITABLE_WALK.includes(w.status),

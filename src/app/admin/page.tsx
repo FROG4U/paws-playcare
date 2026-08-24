@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { ROLES, USER_STATUS, WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
+import { ROLES, USER_STATUS, WALK_STATUS, walkStatusBadge } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { dayKey, formatDate } from "@/lib/dates";
 import { getServices } from "@/lib/services";
@@ -106,11 +106,13 @@ export default async function AdminHome() {
                     </p>
                   </div>
                 </div>
-                <span
-                  className={`badge ${w.status === WALK_STATUS.COMPLETED ? "bg-success/15 text-success" : "bg-brand-soft text-brand-dark"}`}
-                >
-                  {WALK_STATUS_LABELS[w.status] ?? w.status}
-                </span>
+                {walkStatusBadge(w.status) && (
+                  <span
+                    className={`badge ${w.status === WALK_STATUS.COMPLETED ? "bg-success/15 text-success" : "bg-brand-soft text-brand-dark"}`}
+                  >
+                    {walkStatusBadge(w.status)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

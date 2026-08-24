@@ -16,7 +16,7 @@ export type WalkCard = {
   numDogs: number;
   priceLabel: string;
   worker: string | null;
-  statusLabel: string;
+  statusLabel: string | null; // null = nothing worth showing
   bookingId: string | null;
 };
 
@@ -171,7 +171,9 @@ function WalkRow({
         {error && <p className="text-xs text-danger">{error}</p>}
       </div>
       <div className="flex items-center gap-3">
-        <span className="badge bg-brand-soft text-brand-dark">{w.statusLabel}</span>
+        {w.statusLabel && (
+          <span className="badge bg-brand-soft text-brand-dark">{w.statusLabel}</span>
+        )}
         {w.bookingId && (
           <Link href={`/admin/bookings/${w.bookingId}`} className="text-sm font-semibold text-brand hover:underline">
             Edit

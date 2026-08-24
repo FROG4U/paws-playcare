@@ -77,6 +77,14 @@ export const WALK_STATUS_LABELS: Record<string, string> = {
   DECLINED: "Declined",
 };
 
+// What to show on a walk's badge. There's no team — every walk is the admin's —
+// so the two worker-assignment steps have nothing to say and are left blank.
+// Only a real state (completed, cancelled, declined) gets a badge.
+export function walkStatusBadge(status: string): string | null {
+  if (status === WALK_STATUS.REQUESTED || status === WALK_STATUS.ASSIGNED) return null;
+  return WALK_STATUS_LABELS[status] ?? status;
+}
+
 // A walk cancellation with fewer than this many days' notice is chargeable.
 export const CANCEL_NOTICE_DAYS = 7;
 

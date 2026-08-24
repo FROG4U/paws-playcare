@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
+import { WALK_STATUS, walkStatusBadge } from "@/lib/constants";
 import { formatDate, dayKey, isoWeekday } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { getServices } from "@/lib/services";
@@ -98,7 +98,7 @@ export default async function BookingsPage() {
     numDogs: w.numDogs,
     priceLabel: w.noCharge ? "No charge" : formatMoney(w.price),
     worker: w.worker?.name ?? null,
-    statusLabel: WALK_STATUS_LABELS[w.status] ?? w.status,
+    statusLabel: walkStatusBadge(w.status),
     bookingId: w.bookingId,
   });
 

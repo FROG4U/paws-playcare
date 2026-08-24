@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate, dayKey } from "@/lib/dates";
 import { getServices, serviceForName, serviceDays } from "@/lib/services";
 import { serviceColorMap } from "@/lib/service-colors";
-import { WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
+import { WALK_STATUS, walkStatusBadge } from "@/lib/constants";
 import { PageHeader } from "@/components/ui";
 import { ServiceBadge } from "@/components/ServiceBadge";
 import { Icon } from "@/components/Icon";
@@ -53,7 +53,7 @@ export default async function BookingEditPage({ params }: { params: Promise<{ id
     dateIso: dayKey(w.date),
     label: formatDate(w.date),
     status: w.status,
-    statusLabel: WALK_STATUS_LABELS[w.status] ?? w.status,
+    statusLabel: walkStatusBadge(w.status) ?? "",
     editable: EDITABLE.includes(w.status),
     price: w.price,
     noCharge: w.noCharge,
