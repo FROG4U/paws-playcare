@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { ROLES, USER_STATUS, WALK_STATUS } from "@/lib/constants";
+import { ROLES, USER_STATUS, WALK_STATUS, WALK_STATUS_LABELS } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { dayKey, formatDate } from "@/lib/dates";
 import { getServices } from "@/lib/services";
@@ -17,19 +17,48 @@ export default async function AdminHome() {
     await Promise.all([
       prisma.user.count({ where: { role: ROLES.CLIENT, status: USER_STATUS.PENDING } }),
       prisma.booking.count({ where: { reviewedAt: null, status: "ACTIVE" } }),
+      // Every live walk today — most sit at REQUESTED because walks are
+      // completed directly rather than assigned to a walker first, and filtering
+      // on ASSIGNED/ACCEPTED left this empty while the Calendar showed them.
       prisma.walk.findMany({
         where: {
           date: { gte: todayStart, lte: todayEnd },
-          status: { in: [WALK_STATUS.ACCEPTED, WALK_STATUS.ASSIGNED] },
+          status: { notIn: [WALK_STATUS.CANCELLED, WALK_STATUS.DECLINED] },
         },
-        include: { client: true, worker: true },
-        orderBy: { timeSlot: "asc" },
+        include: {
+          client: { select: { name: true } },
+          worker: { select: { name: true } },
+          booking: { select: { dogIds: true } },
+        },
+        orderBy: [{ timeSlot: "asc" }, { createdAt: "asc" }],
       }),
       prisma.user.count({ where: { role: ROLES.CLIENT, status: USER_STATUS.ACTIVE } }),
       prisma.invoice.aggregate({ where: { status: "OPEN" }, _sum: { total: true } }),
     ]);
 
   const colorMap = serviceColorMap(await getServices());
+
+  // Resolve each walk's dog name(s) from its booking, like Bookings/Calendar do.
+  const dogIdSet = new Set<string>();
+  for (const w of todayWalks) {
+    try {
+      for (const id of JSON.parse(w.booking?.dogIds || "[]")) dogIdSet.add(id);
+    } catch {}
+  }
+  const dogRows = dogIdSet.size
+    ? await prisma.dog.findMany({ where: { id: { in: [...dogIdSet] } }, select: { id: true, name: true } })
+    : [];
+  const dogNameById = new Map(dogRows.map((d) => [d.id, d.name]));
+  const petsFor = (w: (typeof todayWalks)[number]) => {
+    try {
+      const names = (JSON.parse(w.booking?.dogIds || "[]") as string[])
+        .map((id) => dogNameById.get(id))
+        .filter(Boolean) as string[];
+      if (names.length === 1) return names[0];
+      if (names.length > 1) return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+    } catch {}
+    return `${w.numDogs} dog${w.numDogs > 1 ? "s" : ""}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -55,7 +84,7 @@ export default async function AdminHome() {
         {todayWalks.length === 0 ? (
           <div className="mt-3">
             <EmptyState icon="paw" title="No walks scheduled today">
-              When walks are booked and assigned, they&apos;ll show up here.
+              Walks booked for today will show up here.
             </EmptyState>
           </div>
         ) : (
@@ -68,16 +97,19 @@ export default async function AdminHome() {
                   </span>
                   <div>
                     <p className="flex items-center gap-2 font-semibold">
-                      {w.timeSlot} · {w.client.name}
+                      {w.timeSlot} · {petsFor(w)}
                       <ServiceBadge name={w.serviceName ?? "Walk"} colorIndex={w.serviceName != null ? colorMap[w.serviceName] ?? null : null} />
                     </p>
                     <p className="text-sm text-muted">
-                      {w.numDogs} dog{w.numDogs > 1 ? "s" : ""} · {w.worker ? w.worker.name : "Unassigned"}
+                      {w.client.name} · {w.numDogs} dog{w.numDogs > 1 ? "s" : ""}
+                      {w.worker ? ` · ${w.worker.name}` : ""}
                     </p>
                   </div>
                 </div>
-                <span className="badge bg-brand-soft text-brand-dark">
-                  {w.status === WALK_STATUS.ACCEPTED ? "Walk accepted" : "Awaiting worker"}
+                <span
+                  className={`badge ${w.status === WALK_STATUS.COMPLETED ? "bg-success/15 text-success" : "bg-brand-soft text-brand-dark"}`}
+                >
+                  {WALK_STATUS_LABELS[w.status] ?? w.status}
                 </span>
               </li>
             ))}
