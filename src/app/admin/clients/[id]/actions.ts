@@ -272,7 +272,18 @@ export async function resumeClientWalks(clientId: string): Promise<Result> {
     where: { clientId, status: BOOKING_STATUS.PAUSED },
     data: { status: BOOKING_STATUS.ACTIVE },
   });
-  await rolloverOngoingBookings(new Date()); // idempotent refill of ongoing plans
+  // Restore the walks that pausing cancelled (future only), then top up any
+  // genuinely-missing future dates.
+  await prisma.walk.updateMany({
+    where: {
+      clientId,
+      status: WALK_STATUS.CANCELLED,
+      cancelReason: "Walks paused",
+      date: { gte: atUtcMidnight(new Date()) },
+    },
+    data: { status: WALK_STATUS.REQUESTED, cancelledAt: null, cancelledById: null, cancelReason: null, noCharge: false },
+  });
+  await rolloverOngoingBookings(new Date()); // fill any dates with no walk at all
   await notify({
     userId: clientId,
     type: NOTIF_TYPE.PAUSE_RESOLVED,

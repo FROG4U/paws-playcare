@@ -77,6 +77,16 @@ export async function reopenDay(dateKey: string): Promise<{ ok: boolean }> {
   await requireRole([ROLES.ADMIN]);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return { ok: false };
   await prisma.closedDay.deleteMany({ where: { date: atUtcMidnight(dateKey) } });
+  // Restore the walks the closure cancelled on that day, then top up any dates
+  // that never had a walk.
+  await prisma.walk.updateMany({
+    where: {
+      date: atUtcMidnight(dateKey),
+      status: WALK_STATUS.CANCELLED,
+      cancelReason: { startsWith: "Closed:" },
+    },
+    data: { status: WALK_STATUS.REQUESTED, cancelledAt: null, cancelledById: null, cancelReason: null, noCharge: false },
+  });
   await rolloverOngoingBookings(new Date()).catch(() => {});
   revalidatePath("/admin/days-off");
   revalidatePath("/admin/calendar");

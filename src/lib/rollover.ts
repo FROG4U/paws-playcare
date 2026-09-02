@@ -63,11 +63,12 @@ export async function rolloverOngoingBookings(
     if (useDays.length === 0) continue;
 
     const { dates } = expandRecurring(useDays, startIso, endIso, bhKeys);
-    // Never duplicate a day that already has a live walk.
-    const activeKeys = new Set(
-      b.walks.filter((w) => w.status !== WALK_STATUS.CANCELLED).map((w) => dayKey(w.date))
-    );
-    const toCreate = dates.filter((d) => !activeKeys.has(dayKey(d)));
+    // Never recreate a day that already has ANY walk — including a cancelled one.
+    // A cancelled walk means that occurrence was deliberately removed, so it must
+    // stay gone rather than reappearing on the next run. (Pause-resume and
+    // day-reopen restore walks explicitly, so they don't need recreating here.)
+    const takenKeys = new Set(b.walks.map((w) => dayKey(w.date)));
+    const toCreate = dates.filter((d) => !takenKeys.has(dayKey(d)));
     if (toCreate.length === 0) continue;
 
     const price = servicePrice(service, b.numDogs);
