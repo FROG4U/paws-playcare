@@ -11,7 +11,10 @@ import { PasswordReset } from "./PasswordReset";
 import { CadenceSelect } from "./CadenceSelect";
 import { ClientWalks, type WalkLite } from "./ClientWalks";
 import { SetUpWalks } from "./SetUpWalks";
+import { RegularDays, type PendingSlotRequest } from "./RegularDays";
 import { CADENCE_WORD } from "@/lib/registration-booking";
+import { getServices, requestedWalkOptions } from "@/lib/services";
+import { CHANGE_REQUEST_STATUS } from "@/lib/constants";
 
 const EDITABLE_WALK = [WALK_STATUS.REQUESTED, WALK_STATUS.ASSIGNED, WALK_STATUS.ACCEPTED] as string[];
 
@@ -71,6 +74,31 @@ export default async function ClientDetailPage({
   try {
     regSlots = JSON.parse(client.regSlots || "[]");
   } catch {}
+
+  // The slots on offer right now, plus any change this client is waiting on.
+  const [services, slotRequest] = await Promise.all([
+    getServices(),
+    prisma.slotChangeRequest.findFirst({
+      where: { clientId: client.id, status: CHANGE_REQUEST_STATUS.PENDING },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const slotOptions = requestedWalkOptions(services).map((o) => o.value);
+
+  let pendingSlotRequest: PendingSlotRequest | null = null;
+  if (slotRequest) {
+    let requested: string[] = [];
+    try {
+      const parsed = JSON.parse(slotRequest.requestedSlots);
+      if (Array.isArray(parsed)) requested = parsed;
+    } catch {}
+    pendingSlotRequest = {
+      id: slotRequest.id,
+      requested,
+      note: slotRequest.note,
+      askedLabel: formatDate(slotRequest.createdAt),
+    };
+  }
 
   return (
     <div className="space-y-6">
@@ -165,15 +193,23 @@ export default async function ClientDetailPage({
         <Field label="Notes" value={client.notes} />
       </Section>
 
-      {/* Booking requirements from sign-up */}
-      <Section title="Sign-up requirements" icon="clipboard">
-        <Field label="Preferred start" value={client.regStartDate ? formatDate(client.regStartDate) : null} />
-        <Field
-          label="Requested slots"
-          value={regSlots.length ? regSlots.map((s) => BOOKING_SLOT_LABELS[s] ?? s).join(", ") : null}
+      {/* Booking requirements from sign-up - the slots are live, editable here */}
+      <div className="card space-y-4">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <Icon name="clipboard" className="h-5 w-5 text-brand" />
+          Sign-up requirements
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Preferred start" value={client.regStartDate ? formatDate(client.regStartDate) : null} />
+          <Field label="Agreed to terms" value={client.agreedTermsAt ? formatDateTime(client.agreedTermsAt) : "Not recorded"} />
+        </div>
+        <RegularDays
+          clientId={client.id}
+          options={slotOptions}
+          initialSlots={regSlots.map((s) => BOOKING_SLOT_LABELS[s] ?? s)}
+          pending={pendingSlotRequest}
         />
-        <Field label="Agreed to terms" value={client.agreedTermsAt ? formatDateTime(client.agreedTermsAt) : "Not recorded"} />
-      </Section>
+      </div>
 
       {/* Walks — editable */}
       <div className="space-y-3">

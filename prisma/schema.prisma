@@ -72,6 +72,7 @@ model User {
   earnings        Earning[]
   notifications   Notification[]
   changeRequests  ChangeRequest[]  @relation("RequestedBy")
+  slotRequests    SlotChangeRequest[] @relation("ClientSlotRequests")
 
   // Field/playground-hire bookings (role FIELD_CLIENT). Nullable link so a
   // booking survives if the account is later deleted (kept as guest history).
@@ -565,4 +566,25 @@ model Notification {
   link  String?
   read  Boolean @default(false)
   createdAt DateTime @default(now())
+}
+
+// A client asking to change their regular weekly days (add, drop or swap a
+// slot). Unlike ChangeRequest this isn't about one walk - it's the pattern the
+// whole schedule is generated from, so an admin approves it and the bookings
+// are rebuilt from the approved list.
+model SlotChangeRequest {
+  id       String @id @default(cuid())
+  clientId String
+  client   User   @relation("ClientSlotRequests", fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Both are JSON arrays of slot labels, e.g. ["Field Play - Monday (AM)"].
+  currentSlots   String @default("[]") // what they had when they asked
+  requestedSlots String @default("[]") // what they want instead
+  note           String?
+
+  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  adminNote    String?
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
 }

@@ -13,6 +13,7 @@ import {
 } from "@/lib/constants";
 import { notifyAdmins } from "@/lib/notifications";
 import { atUtcMidnight, formatDate } from "@/lib/dates";
+import { getServices, requestedWalkOptions } from "@/lib/services";
 
 type CancelResult = { ok: true; feeApplies: boolean } | { ok: false; error: string };
 
@@ -64,4 +65,71 @@ export async function requestWalkCancellation(walkId: string): Promise<CancelRes
   revalidatePath("/admin/cancellations");
   revalidatePath("/admin");
   return { ok: true, feeApplies };
+}
+
+// Ask to change the regular weekly days (drop one, add one, or swap). Nothing
+// moves until an admin approves it, so the bill can't change behind the scenes.
+export async function requestSlotChange(
+  slots: string[],
+  note?: string
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const user = await requireRole([ROLES.CLIENT]);
+
+  const services = await getServices();
+  const offered = new Set(requestedWalkOptions(services).map((o) => o.value));
+  const wanted = [...new Set(slots)].filter((s) => offered.has(s));
+  if (slots.some((s) => !offered.has(s))) {
+    return { ok: false, error: "One of those days isn't offered any more - please pick from the list." };
+  }
+
+  let current: string[] = [];
+  try {
+    const parsed = JSON.parse(user.regSlots || "[]");
+    if (Array.isArray(parsed)) current = parsed;
+  } catch {}
+
+  if (JSON.stringify([...wanted].sort()) === JSON.stringify([...current].sort())) {
+    return { ok: false, error: "That's the same as your current days." };
+  }
+
+  const existing = await prisma.slotChangeRequest.findFirst({
+    where: { clientId: user.id, status: CHANGE_REQUEST_STATUS.PENDING },
+  });
+  if (existing) {
+    return { ok: false, error: "You've already got a change waiting - we'll come back to you on that one first." };
+  }
+
+  await prisma.slotChangeRequest.create({
+    data: {
+      clientId: user.id,
+      currentSlots: JSON.stringify(current),
+      requestedSlots: JSON.stringify(wanted),
+      note: note?.trim() || null,
+    },
+  });
+
+  await notifyAdmins({
+    type: NOTIF_TYPE.CHANGE_REQUESTED,
+    title: `${user.name} wants to change their regular days`,
+    body: `Now: ${current.join(", ") || "none"}. Wants: ${wanted.join(", ") || "none"}.`,
+    link: `/admin/clients/${user.id}`,
+  });
+
+  revalidatePath("/client/walks");
+  return {
+    ok: true,
+    message: "Sent - we'll let you know once it's approved. Nothing changes on your bill until then.",
+  };
+}
+
+// Withdraw a change that hasn't been actioned yet.
+export async function withdrawSlotChange(): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireRole([ROLES.CLIENT]);
+  const req = await prisma.slotChangeRequest.findFirst({
+    where: { clientId: user.id, status: CHANGE_REQUEST_STATUS.PENDING },
+  });
+  if (!req) return { ok: false, error: "There's nothing waiting to withdraw." };
+  await prisma.slotChangeRequest.delete({ where: { id: req.id } });
+  revalidatePath("/client/walks");
+  return { ok: true };
 }

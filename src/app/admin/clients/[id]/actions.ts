@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole, hashPassword } from "@/lib/auth";
-import { ROLES, PAY_CADENCE, BOOKING_STATUS, WALK_STATUS, NOTIF_TYPE, TIME_SLOTS } from "@/lib/constants";
+import { ROLES, PAY_CADENCE, BOOKING_STATUS, WALK_STATUS, NOTIF_TYPE, TIME_SLOTS, CHANGE_REQUEST_STATUS } from "@/lib/constants";
 import { notify } from "@/lib/notifications";
 import { dayKey, atUtcMidnight } from "@/lib/dates";
 import { poundsToPence } from "@/lib/money";
@@ -13,6 +13,7 @@ import {
   createBookingsFromRegistration,
   registrationBookingSummary,
 } from "@/lib/registration-booking";
+import { applyRequestedSlots } from "@/lib/slot-schedule";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -366,4 +367,123 @@ export async function setUpRegularWalks(
     ? ` ${result.unresolved.length} requested walk${result.unresolved.length > 1 ? "s" : ""} (${result.unresolved.join(", ")}) had no matching service — book those by hand.`
     : "";
   return { ok: true, message: `${summary ?? "Walks set up."}${tail}` };
+}
+
+// Admin editing the client's regular days straight from their card: the
+// bookings and walks are rebuilt to match, so invoicing follows the new
+// pattern from today. Past and completed walks are untouched.
+export async function saveClientSlots(
+  clientId: string,
+  slots: string[]
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const admin = await requireRole([ROLES.ADMIN]);
+  const client = await prisma.user.findUnique({
+    where: { id: clientId },
+    select: { id: true, role: true },
+  });
+  if (!client || client.role !== ROLES.CLIENT) return { ok: false, error: "Client not found." };
+
+  const res = await applyRequestedSlots(clientId, slots, { adminId: admin.id });
+  if (!res.ok) return res;
+
+  if (res.added.length || res.removed.length) {
+    await notify({
+      userId: clientId,
+      type: NOTIF_TYPE.BOOKING_UPDATED,
+      title: "Your regular days have changed",
+      body: `${res.summary}. Your invoices follow the new days from today.`,
+      link: "/client/walks",
+    });
+  }
+
+  refresh(clientId);
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/calendar");
+  return {
+    ok: true,
+    message:
+      res.summary +
+      (res.unresolved.length
+        ? ` (${res.unresolved.length} slot${res.unresolved.length > 1 ? "s" : ""} had no matching service and were left out)`
+        : ""),
+  };
+}
+
+// Approve a client's request to change their regular days: apply exactly what
+// they asked for, then tell them what it means for their bill.
+export async function approveSlotRequest(
+  requestId: string
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const admin = await requireRole([ROLES.ADMIN]);
+  const req = await prisma.slotChangeRequest.findUnique({ where: { id: requestId } });
+  if (!req) return { ok: false, error: "That request no longer exists." };
+  if (req.status !== CHANGE_REQUEST_STATUS.PENDING) {
+    return { ok: false, error: "That request has already been dealt with." };
+  }
+
+  let wanted: string[] = [];
+  try {
+    const parsed = JSON.parse(req.requestedSlots);
+    if (Array.isArray(parsed)) wanted = parsed.filter((s) => typeof s === "string");
+  } catch {}
+
+  const res = await applyRequestedSlots(req.clientId, wanted, { adminId: admin.id });
+  if (!res.ok) return res;
+
+  await prisma.slotChangeRequest.update({
+    where: { id: requestId },
+    data: {
+      status: CHANGE_REQUEST_STATUS.APPROVED,
+      resolvedById: admin.id,
+      resolvedAt: new Date(),
+    },
+  });
+
+  await notify({
+    userId: req.clientId,
+    type: NOTIF_TYPE.CHANGE_RESOLVED,
+    title: "Your day change is approved",
+    body: `${res.summary}. Removed days aren't charged; added days are billed on your usual cycle.`,
+    link: "/client/walks",
+  });
+
+  refresh(req.clientId);
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/calendar");
+  return { ok: true, message: `Approved - ${res.summary}` };
+}
+
+export async function declineSlotRequest(
+  requestId: string,
+  reason?: string
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const admin = await requireRole([ROLES.ADMIN]);
+  const req = await prisma.slotChangeRequest.findUnique({ where: { id: requestId } });
+  if (!req) return { ok: false, error: "That request no longer exists." };
+  if (req.status !== CHANGE_REQUEST_STATUS.PENDING) {
+    return { ok: false, error: "That request has already been dealt with." };
+  }
+
+  await prisma.slotChangeRequest.update({
+    where: { id: requestId },
+    data: {
+      status: CHANGE_REQUEST_STATUS.REJECTED,
+      adminNote: reason?.trim() || null,
+      resolvedById: admin.id,
+      resolvedAt: new Date(),
+    },
+  });
+
+  await notify({
+    userId: req.clientId,
+    type: NOTIF_TYPE.CHANGE_RESOLVED,
+    title: "Your day change wasn't approved",
+    body: reason?.trim()
+      ? `${reason.trim()} Your days and your bill stay as they are.`
+      : "Your regular days stay as they are, so your bill is unchanged. Give us a ring if you'd like to talk it through.",
+    link: "/client/walks",
+  });
+
+  refresh(req.clientId);
+  return { ok: true, message: "Request declined." };
 }

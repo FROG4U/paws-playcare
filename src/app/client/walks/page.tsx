@@ -4,12 +4,13 @@ import { requireClient } from "@/lib/guard";
 import { WALK_STATUS, WALK_STATUS_LABELS, CHANGE_REQUEST_TYPE, CHANGE_REQUEST_STATUS, CANCEL_NOTICE_DAYS } from "@/lib/constants";
 import { formatDate, atUtcMidnight } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-import { getServices } from "@/lib/services";
+import { getServices, requestedWalkOptions } from "@/lib/services";
 import { serviceColorMap } from "@/lib/service-colors";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { ServiceBadge } from "@/components/ServiceBadge";
 import { Icon } from "@/components/Icon";
 import { CancelWalk } from "./CancelWalk";
+import { RegularDaysRequest } from "./RegularDaysRequest";
 
 const STATUS_CLASS: Record<string, string> = {
   REQUESTED: "bg-warn/15 text-warn",
@@ -36,6 +37,29 @@ export default async function WalksPage() {
     }),
     getServices().then(serviceColorMap),
   ]);
+
+  const [slotServices, slotRequest] = await Promise.all([
+    getServices(),
+    prisma.slotChangeRequest.findFirst({
+      where: { clientId: user.id, status: CHANGE_REQUEST_STATUS.PENDING },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const slotOptions = requestedWalkOptions(slotServices).map((o) => o.value);
+  let currentSlots: string[] = [];
+  try {
+    const parsed = JSON.parse(user.regSlots || "[]");
+    if (Array.isArray(parsed)) currentSlots = parsed;
+  } catch {}
+  let pendingSlots: { requested: string[]; note: string | null } | null = null;
+  if (slotRequest) {
+    let requested: string[] = [];
+    try {
+      const parsed = JSON.parse(slotRequest.requestedSlots);
+      if (Array.isArray(parsed)) requested = parsed;
+    } catch {}
+    pendingSlots = { requested, note: slotRequest.note };
+  }
 
   const pendingSet = new Set(pendingCancels.map((c) => c.walkId));
   const todayMs = atUtcMidnight(new Date()).getTime();
@@ -69,6 +93,8 @@ export default async function WalksPage() {
           </Link>
         }
       />
+
+      <RegularDaysRequest options={slotOptions} current={currentSlots} pending={pendingSlots} />
 
       {walks.length === 0 ? (
         <EmptyState

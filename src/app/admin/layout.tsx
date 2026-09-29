@@ -10,12 +10,13 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await requireAdmin();
-  const [unread, newBookings, newMessages, pendingCancels, pausePending] = await Promise.all([
+  const [unread, newBookings, newMessages, pendingCancels, pausePending, slotPending] = await Promise.all([
     unreadCount(user.id),
     prisma.booking.count({ where: { reviewedAt: null, status: "ACTIVE" } }),
     prisma.contactMessage.count({ where: { read: false } }),
     prisma.changeRequest.count({ where: { type: "CANCELLATION", status: "PENDING" } }),
     prisma.user.count({ where: { role: "CLIENT", pauseRequestedAt: { not: null } } }),
+    prisma.slotChangeRequest.count({ where: { status: "PENDING" } }),
   ]);
 
   const items: NavItem[] = [
@@ -28,7 +29,7 @@ export default async function AdminLayout({
     { href: "/admin/cancellations", label: "Cancellations", icon: "x", badge: pendingCancels, section: "Dog Walking" },
     { href: "/admin/days-off", label: "Days off", icon: "calendar", section: "Dog Walking" },
     { href: "/admin/extra-days", label: "Add days", icon: "plus", section: "Dog Walking" },
-    { href: "/admin/clients", label: "Clients", icon: "users", badge: pausePending, section: "Dog Walking" },
+    { href: "/admin/clients", label: "Clients", icon: "users", badge: pausePending + slotPending, section: "Dog Walking" },
     { href: "/admin/workers", label: "Team", icon: "footprints", section: "Dog Walking" },
     { href: "/admin/services", label: "Services", icon: "paw", section: "Dog Walking" },
     { href: "/admin/pricing", label: "Pricing", icon: "tag", section: "Dog Walking" },
