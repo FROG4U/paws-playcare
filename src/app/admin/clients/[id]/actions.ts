@@ -13,7 +13,7 @@ import {
   createBookingsFromRegistration,
   registrationBookingSummary,
 } from "@/lib/registration-booking";
-import { applyRequestedSlots } from "@/lib/slot-schedule";
+import { applyRequestedSlots, applySlotEdits, type SlotEdit } from "@/lib/slot-schedule";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -369,12 +369,12 @@ export async function setUpRegularWalks(
   return { ok: true, message: `${summary ?? "Walks set up."}${tail}` };
 }
 
-// Admin editing the client's regular days straight from their card: the
-// bookings and walks are rebuilt to match, so invoicing follows the new
-// pattern from today. Past and completed walks are untouched.
+// Admin changing the client's regular days from their card. Each change
+// carries its own date, so a day can be dropped from one date while another
+// starts on a different one. Past and completed walks are untouched.
 export async function saveClientSlots(
   clientId: string,
-  slots: string[]
+  edits: SlotEdit[]
 ): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
   const admin = await requireRole([ROLES.ADMIN]);
   const client = await prisma.user.findUnique({
@@ -382,11 +382,12 @@ export async function saveClientSlots(
     select: { id: true, role: true },
   });
   if (!client || client.role !== ROLES.CLIENT) return { ok: false, error: "Client not found." };
+  if (edits.length === 0) return { ok: false, error: "Nothing to change." };
 
-  const res = await applyRequestedSlots(clientId, slots, { adminId: admin.id });
+  const res = await applySlotEdits(clientId, edits, { adminId: admin.id });
   if (!res.ok) return res;
 
-  if (res.added.length || res.removed.length) {
+  if (res.outcomes.length) {
     await notify({
       userId: clientId,
       type: NOTIF_TYPE.BOOKING_UPDATED,

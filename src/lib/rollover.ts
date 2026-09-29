@@ -38,7 +38,7 @@ export async function rolloverOngoingBookings(
 
   const services = await getServices();
   const bhKeys = await blockedDateKeys();
-  const startIso = dayKey(now);
+  const todayIso = dayKey(now);
   const endIso = dayKey(new Date(now.getTime() + (ROLL_HORIZON_DAYS - 1) * 86400000));
 
   let bookingsRolled = 0;
@@ -62,6 +62,11 @@ export async function rolloverOngoingBookings(
     const useDays = days.filter((d) => serviceDays(service).includes(d));
     if (useDays.length === 0) continue;
 
+    // Never generate before the booking starts - a day added "from 1 Nov" gets
+    // its own booking dated then, and must not be back-filled to today.
+    const bookingStart = dayKey(b.startDate);
+    const startIso = bookingStart > todayIso ? bookingStart : todayIso;
+    if (startIso > endIso) continue;
     const { dates } = expandRecurring(useDays, startIso, endIso, bhKeys);
     // Never recreate a day that already has ANY walk — including a cancelled one.
     // A cancelled walk means that occurrence was deliberately removed, so it must

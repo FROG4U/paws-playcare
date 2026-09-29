@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
 import { saveClientSlots, approveSlotRequest, declineSlotRequest } from "./actions";
 
+type Pending = { slot: string; action: "ADD" | "REMOVE"; from: string };
+
 export type PendingSlotRequest = {
   id: string;
   requested: string[];
@@ -17,14 +19,17 @@ export function RegularDays({
   clientId,
   options,
   initialSlots,
+  todayIso,
   pending: pendingRequest,
 }: {
   clientId: string;
   options: string[];
   initialSlots: string[];
+  todayIso: string;
   pending: PendingSlotRequest | null;
 }) {
-  const [slots, setSlots] = useState<string[]>(initialSlots);
+  // Changes are staged with their own start date, then saved together.
+  const [changes, setChanges] = useState<Pending[]>([]);
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,8 +37,18 @@ export function RegularDays({
   const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
 
-  const dirty = JSON.stringify([...slots].sort()) !== JSON.stringify([...initialSlots].sort());
-  const spare = options.filter((o) => !slots.includes(o));
+  const removing = new Set(changes.filter((c) => c.action === "REMOVE").map((c) => c.slot));
+  const adding = changes.filter((c) => c.action === "ADD");
+  const spare = options.filter(
+    (o) => !initialSlots.includes(o) && !adding.some((a) => a.slot === o)
+  );
+  const dirty = changes.length > 0;
+
+  const stage = (slot: string, action: "ADD" | "REMOVE") =>
+    setChanges((prev) => [...prev, { slot, action, from: todayIso }]);
+  const unstage = (slot: string) => setChanges((prev) => prev.filter((c) => c.slot !== slot));
+  const setFrom = (slot: string, from: string) =>
+    setChanges((prev) => prev.map((c) => (c.slot === slot ? { ...c, from } : c)));
 
   function run(fn: () => Promise<{ ok: true; message: string } | { ok: false; error: string }>) {
     setError(null);
@@ -44,6 +59,7 @@ export function RegularDays({
         setMessage(res.message);
         setEditing(false);
         setDeclining(false);
+        setChanges([]);
       } else setError(res.error);
     });
   }
@@ -117,7 +133,7 @@ export function RegularDays({
           </button>
         ) : (
           <button
-            onClick={() => { setSlots(initialSlots); setEditing(false); setError(null); }}
+            onClick={() => { setChanges([]); setEditing(false); setError(null); }}
             className="text-xs font-semibold text-muted hover:underline"
           >
             Cancel
@@ -125,30 +141,82 @@ export function RegularDays({
         )}
       </div>
 
-      {slots.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {slots.map((s) => (
-            <span key={s} className="badge bg-brand-soft text-brand-dark">
-              {s}
-              {editing && (
-                <button
-                  type="button"
-                  onClick={() => setSlots((prev) => prev.filter((x) => x !== s))}
-                  aria-label={`Remove ${s}`}
-                  className="ml-1 text-brand hover:text-danger"
+      {initialSlots.length > 0 ? (
+        <div className="space-y-1.5">
+          {initialSlots.map((s) => {
+            const change = changes.find((c) => c.slot === s && c.action === "REMOVE");
+            return (
+              <div key={s} className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`badge ${change ? "bg-danger/10 text-danger line-through" : "bg-brand-soft text-brand-dark"}`}
                 >
-                  <Icon name="x" className="h-3 w-3" />
-                </button>
-              )}
-            </span>
-          ))}
+                  {s}
+                </span>
+                {editing && !change && (
+                  <button
+                    type="button"
+                    onClick={() => stage(s, "REMOVE")}
+                    className="text-xs font-semibold text-danger hover:underline"
+                  >
+                    Remove
+                  </button>
+                )}
+                {change && (
+                  <span className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="text-muted">stops from</span>
+                    <input
+                      type="date"
+                      min={todayIso}
+                      value={change.from}
+                      onChange={(e) => setFrom(s, e.target.value)}
+                      className="input py-1 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => unstage(s)}
+                      className="font-semibold text-muted hover:underline"
+                    >
+                      Keep it
+                    </button>
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <p className="text-sm text-muted">No regular days.</p>
       )}
 
       {editing && (
-        <div className="space-y-2">
+        <div className="space-y-3">
+          {adding.length > 0 && (
+            <div className="space-y-1.5">
+              {adding.map((a) => (
+                <div key={a.slot} className="flex flex-wrap items-center gap-2">
+                  <span className="badge bg-success/15 text-success">{a.slot}</span>
+                  <span className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="text-muted">starts from</span>
+                    <input
+                      type="date"
+                      min={todayIso}
+                      value={a.from}
+                      onChange={(e) => setFrom(a.slot, e.target.value)}
+                      className="input py-1 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => unstage(a.slot)}
+                      className="font-semibold text-muted hover:underline"
+                    >
+                      Undo
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {spare.length > 0 && (
             <div>
               <p className="mb-1 text-xs font-semibold text-muted">Add a day</p>
@@ -157,7 +225,7 @@ export function RegularDays({
                   <button
                     key={o}
                     type="button"
-                    onClick={() => setSlots((prev) => [...prev, o])}
+                    onClick={() => stage(o, "ADD")}
                     className="rounded-full border border-border px-3 py-1.5 text-sm font-semibold text-muted hover:border-brand hover:text-brand"
                   >
                     <Icon name="plus" className="mr-1 inline h-3.5 w-3.5" />
@@ -167,17 +235,20 @@ export function RegularDays({
               </div>
             </div>
           )}
+
           <p className="text-xs text-muted">
-            Saving rebuilds their walks from today: days you remove are cancelled with no charge,
-            days you add are booked for the next 12 weeks and billed on their usual cycle. Walks
-            already done stay on their invoice.
+            Each change starts on its own date - to swap a day, remove one and add another. Days
+            you remove are cancelled from that date with no charge; days you add are booked from
+            their date and billed on the client&apos;s usual cycle. Walks before the date, and any
+            already done, stay exactly as they are.
           </p>
+
           <button
-            onClick={() => run(() => saveClientSlots(clientId, slots))}
+            onClick={() => run(() => saveClientSlots(clientId, changes.map((c) => ({ slot: c.slot, action: c.action, from: c.from }))))}
             disabled={pending || !dirty}
             className="btn-primary text-sm disabled:opacity-50"
           >
-            {pending ? "Saving..." : "Save days and update walks"}
+            {pending ? "Saving..." : "Save changes and update walks"}
           </button>
         </div>
       )}

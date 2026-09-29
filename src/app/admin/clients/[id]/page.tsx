@@ -207,6 +207,7 @@ export default async function ClientDetailPage({
           clientId={client.id}
           options={slotOptions}
           initialSlots={regSlots.map((s) => BOOKING_SLOT_LABELS[s] ?? s)}
+          todayIso={dayKey(new Date())}
           pending={pendingSlotRequest}
         />
       </div>
