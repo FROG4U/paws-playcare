@@ -3,7 +3,7 @@
 
 import type Stripe from "stripe";
 import { prisma } from "./prisma";
-import { getStripe } from "./stripe";
+import { getStripe, stripeConfigured } from "./stripe";
 import { getFieldSettings, groupSlotsByDay } from "./field";
 import { sendFieldConfirmation } from "./field-email";
 import { notifyAdmins } from "./notifications";
@@ -105,4 +105,67 @@ export async function finalizeFieldBookingPaid(
     } on ${formatDate(booking.date)} · ${booking.reference}.`,
     link: "/admin/field/bookings",
   });
+}
+
+// ---------------------------------------------------------------------------
+// Safety net for a missed webhook.
+//
+// A field booking is only marked PAID when Stripe calls the webhook back. If
+// that delivery fails (endpoint not subscribed, wrong signing secret, an
+// outage) the customer has paid, sees the success page and turns up at the
+// field, while the app still shows PENDING and the hold reaper eventually
+// clears it. These functions ask Stripe directly instead of waiting to be
+// told, and finalise exactly as the webhook would.
+// ---------------------------------------------------------------------------
+
+export type ReconcileOutcome = "paid" | "already-paid" | "unpaid" | "no-payment" | "error";
+
+// Check one booking against Stripe and finalise it if the money is there.
+export async function reconcileFieldBooking(bookingId: string): Promise<ReconcileOutcome> {
+  const booking = await prisma.fieldBooking.findUnique({
+    where: { id: bookingId },
+    select: { id: true, status: true, stripePaymentIntentId: true },
+  });
+  if (!booking) return "no-payment";
+  if (booking.status === FIELD_BOOKING_STATUS.PAID) return "already-paid";
+  if (!booking.stripePaymentIntentId) return "no-payment";
+  if (!stripeConfigured()) return "error";
+
+  try {
+    const pi = await getStripe().paymentIntents.retrieve(booking.stripePaymentIntentId);
+    if (pi.status === "succeeded") {
+      await finalizeFieldBookingPaid(bookingId, pi);
+      return "paid";
+    }
+    return "unpaid";
+  } catch {
+    // Never let a Stripe hiccup lose the booking - leave it alone and retry.
+    return "error";
+  }
+}
+
+// Sweep recent bookings that are still waiting on a payment result. Runs in
+// the daily maintenance cron, so a missed webhook heals itself within a day.
+export async function reconcilePendingFieldBookings(
+  now: Date = new Date(),
+  withinDays = 14
+): Promise<{ fieldReconciled: number; fieldStillUnpaid: number }> {
+  const since = new Date(now.getTime() - withinDays * 86400000);
+  const waiting = await prisma.fieldBooking.findMany({
+    where: {
+      status: { in: [FIELD_BOOKING_STATUS.PENDING, FIELD_BOOKING_STATUS.FAILED] },
+      stripePaymentIntentId: { not: null },
+      createdAt: { gte: since },
+    },
+    select: { id: true },
+  });
+
+  let fieldReconciled = 0;
+  let fieldStillUnpaid = 0;
+  for (const b of waiting) {
+    const outcome = await reconcileFieldBooking(b.id);
+    if (outcome === "paid") fieldReconciled += 1;
+    else if (outcome === "unpaid") fieldStillUnpaid += 1;
+  }
+  return { fieldReconciled, fieldStillUnpaid };
 }

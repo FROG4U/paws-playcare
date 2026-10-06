@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { Icon } from "@/components/Icon";
 import { FIELD_BOOKING_STATUS } from "@/lib/constants";
+import { reconcileFieldBooking } from "@/lib/field-run";
 
 export const metadata: Metadata = {
   title: "Booking confirmed — Paws Playcare",
@@ -20,6 +21,19 @@ export default async function FieldSuccess({
   searchParams: Promise<{ ref?: string }>;
 }) {
   const { ref } = await searchParams;
+
+  // The webhook usually gets here first, but don't rely on it: if this booking
+  // is still waiting, ask Stripe directly and finalise it now. That sends the
+  // confirmation email with the gate codes and tells the admins, exactly as
+  // the webhook would have.
+  if (ref) {
+    const waiting = await prisma.fieldBooking.findFirst({
+      where: { reference: ref, status: { not: FIELD_BOOKING_STATUS.PAID } },
+      select: { id: true },
+    });
+    if (waiting) await reconcileFieldBooking(waiting.id).catch(() => {});
+  }
+
   const booking = ref
     ? await prisma.fieldBooking.findUnique({
         where: { reference: ref },

@@ -6,6 +6,7 @@
 // (when the UK is on BST); the rest of the year uses winter hours (GMT).
 
 import { prisma } from "./prisma";
+import { getStripe, stripeConfigured } from "./stripe";
 import { atUtcMidnight, dayKey } from "./dates";
 import {
   FIELD_BOOKING_STATUS,
@@ -206,13 +207,32 @@ export async function releaseStaleFieldHolds(
       status: { in: [FIELD_BOOKING_STATUS.PENDING, FIELD_BOOKING_STATUS.FAILED] },
       createdAt: { lt: cutoff },
     },
-    select: { id: true },
+    select: { id: true, stripePaymentIntentId: true },
   });
   if (!stale.length) return 0;
-  await prisma.fieldBooking.deleteMany({
-    where: { id: { in: stale.map((s) => s.id) } },
-  });
-  return stale.length;
+
+  // Never bin a booking the customer may have actually paid for. If Stripe
+  // says the payment went through (a webhook we never received), leave it
+  // alone - reconcilePendingFieldBookings finalises it properly. Anything
+  // Stripe can't confirm as paid is a genuinely abandoned hold.
+  const safeToDelete: string[] = [];
+  for (const b of stale) {
+    if (!b.stripePaymentIntentId || !stripeConfigured()) {
+      safeToDelete.push(b.id);
+      continue;
+    }
+    try {
+      const pi = await getStripe().paymentIntents.retrieve(b.stripePaymentIntentId);
+      if (pi.status !== "succeeded") safeToDelete.push(b.id);
+    } catch {
+      // Couldn't ask Stripe - keep the booking rather than risk deleting a
+      // paid one. It'll be looked at again on the next run.
+    }
+  }
+  if (!safeToDelete.length) return 0;
+
+  await prisma.fieldBooking.deleteMany({ where: { id: { in: safeToDelete } } });
+  return safeToDelete.length;
 }
 
 // Group a booking's slots by calendar day (sorted), so multi-day bookings can
