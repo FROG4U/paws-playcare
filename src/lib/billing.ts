@@ -265,3 +265,102 @@ export async function repriceInvoicedWalk(
   await recomputeTotals(walk.invoiceItem.invoiceId);
   return { ok: true, invoiced: true };
 }
+
+// ---------------------------------------------------------------------------
+// Event places on the invoice.
+//
+// A paid event is billed the same way walks are: the fee goes on the client's
+// open invoice for the period they booked in, and the usual nightly run takes
+// it from the card on file along with everything else. Nothing is charged
+// separately at the point of booking.
+// ---------------------------------------------------------------------------
+
+// Put an event place on the client's current invoice. Idempotent, and a no-op
+// for a free event. Returns the invoice id, or null if there's nothing to bill.
+export async function addEventSignupToInvoice(signupId: string): Promise<string | null> {
+  const signup = await prisma.eventSignup.findUnique({
+    where: { id: signupId },
+    include: {
+      invoiceItem: true,
+      event: { select: { title: true, date: true, pricePence: true } },
+      user: { select: { id: true, payCadence: true } },
+    },
+  });
+  if (!signup || !signup.user) return null;
+  if (signup.invoiceItem) return signup.invoiceItem.invoiceId; // already billed
+  const amount = signup.event.pricePence ?? 0;
+  if (amount <= 0) return null; // free event
+
+  const cadence = signup.user.payCadence;
+  // Billed in the period they booked in, so it's collected on their next run.
+  const { start, end } = billingPeriodFor(cadence, new Date());
+
+  let invoice = await prisma.invoice.findFirst({
+    where: {
+      clientId: signup.user.id,
+      status: INVOICE_STATUS.OPEN,
+      dueAt: null,
+      periodStart: start,
+      periodEnd: end,
+    },
+  });
+  if (!invoice) {
+    invoice = await prisma.invoice.create({
+      data: {
+        number: await generateInvoiceNumber(end),
+        clientId: signup.user.id,
+        cadence,
+        status: INVOICE_STATUS.OPEN,
+        periodStart: start,
+        periodEnd: end,
+      },
+    });
+  }
+
+  const dogs = signup.dogName ? ` · ${signup.dogName}` : "";
+  await prisma.invoiceItem.create({
+    data: {
+      invoiceId: invoice.id,
+      eventSignupId: signup.id,
+      description: `${signup.event.title} (event) · ${formatDate(signup.event.date)}${dogs}`,
+      date: signup.event.date,
+      amount,
+    },
+  });
+  await recomputeTotals(invoice.id);
+  return invoice.id;
+}
+
+// Take an event place back off its invoice (dropped out, or removed by an
+// admin). Refused once the invoice has been paid - that needs a refund.
+export async function removeEventSignupFromInvoice(
+  signupId: string
+): Promise<{ ok: true; removed: boolean } | { ok: false; error: string }> {
+  const item = await prisma.invoiceItem.findUnique({
+    where: { eventSignupId: signupId },
+    include: { invoice: true },
+  });
+  if (!item) return { ok: true, removed: false };
+  if (item.invoice.status === INVOICE_STATUS.PAID || item.invoice.paidAt) {
+    return {
+      ok: false,
+      error: `That place is on paid invoice ${item.invoice.number}, so it can't be taken off here - refund it in Stripe instead.`,
+    };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.invoiceItem.delete({ where: { id: item.id } });
+    const agg = await tx.invoiceItem.aggregate({
+      where: { invoiceId: item.invoiceId },
+      _sum: { amount: true },
+    });
+    const remaining = agg._sum.amount ?? 0;
+    if (remaining === 0) await tx.invoice.delete({ where: { id: item.invoiceId } });
+    else
+      await tx.invoice.update({
+        where: { id: item.invoiceId },
+        data: { subtotal: remaining, total: remaining },
+      });
+  });
+  return { ok: true, removed: true };
+}

@@ -8,6 +8,7 @@ import { saveCompressedImage, deleteUpload } from "@/lib/upload";
 import { atUtcMidnight } from "@/lib/dates";
 import { poundsToPence } from "@/lib/money";
 import { uniqueEventSlug, announceEvent } from "@/lib/events";
+import { removeEventSignupFromInvoice } from "@/lib/billing";
 
 export type Result = { ok: true; message: string } | { ok: false; error: string };
 
@@ -176,7 +177,18 @@ export async function removeSignup(signupId: string): Promise<Result> {
     include: { event: { select: { slug: true } } },
   });
   if (!signup) return { ok: false, error: "That booking has already gone." };
+
+  // Take the fee back off their invoice first - refused if it's already paid.
+  const unbilled = await removeEventSignupFromInvoice(signupId);
+  if (!unbilled.ok) return { ok: false, error: unbilled.error };
+
   await prisma.eventSignup.delete({ where: { id: signupId } });
   refresh(signup.event.slug);
-  return { ok: true, message: `${signup.name} removed from the list.` };
+  revalidatePath("/client/invoices");
+  return {
+    ok: true,
+    message: unbilled.removed
+      ? `${signup.name} removed, and the fee taken off their invoice.`
+      : `${signup.name} removed from the list.`,
+  };
 }

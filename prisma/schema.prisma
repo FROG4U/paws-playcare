@@ -392,8 +392,14 @@ model InvoiceItem {
   id        String  @id @default(cuid())
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  walkId    String  @unique
-  walk      Walk    @relation(fields: [walkId], references: [id], onDelete: Cascade)
+
+  // A line is either a completed walk or a place on an event; exactly one of
+  // these is set.
+  walkId String? @unique
+  walk   Walk?   @relation(fields: [walkId], references: [id], onDelete: Cascade)
+
+  eventSignupId String?      @unique
+  eventSignup   EventSignup? @relation(fields: [eventSignupId], references: [id], onDelete: Cascade)
 
   description String
   date        DateTime
@@ -634,11 +640,15 @@ model EventSignup {
   name    String
   email   String
   phone   String?
+  // Which of their dogs is coming: ids for accuracy, names for display.
+  dogIds  String  @default("[]")
   dogName String?
   note    String?
 
   status    String   @default("BOOKED") // BOOKED | CANCELLED
   createdAt DateTime @default(now())
+
+  invoiceItem InvoiceItem?
 
   @@unique([eventId, userId])
 }

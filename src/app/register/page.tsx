@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/Logo";
-import { getSession } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import {
   getServices,
   requestedWalkOptions,
@@ -11,7 +11,7 @@ import {
 import { RegisterForm, type SlotGroup } from "./RegisterForm";
 
 export default async function RegisterPage() {
-  if (await getSession()) redirect("/dashboard");
+  if (await getCurrentUser()) redirect("/dashboard");
 
   // Build the registration slots from the admin's live services.
   const services = await getServices();

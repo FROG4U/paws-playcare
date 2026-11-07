@@ -1,4 +1,5 @@
 import { requireClient } from "@/lib/guard";
+import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { EventBooking } from "@/components/EventBooking";
@@ -12,7 +13,19 @@ import { renderMarkdown } from "@/lib/pages";
 
 export default async function ClientEventsPage() {
   const user = await requireClient();
-  const events = await getEventsForClient(user.id);
+  const [events, dogs, mySignups] = await Promise.all([
+    getEventsForClient(user.id),
+    prisma.dog.findMany({
+      where: { ownerId: user.id },
+      select: { id: true, name: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.eventSignup.findMany({
+      where: { userId: user.id },
+      select: { eventId: true, dogName: true },
+    }),
+  ]);
+  const dogNamesByEvent = new Map(mySignups.map((s) => [s.eventId, s.dogName]));
 
   return (
     <div className="space-y-5">
@@ -75,6 +88,13 @@ export default async function ClientEventsPage() {
                 priceLabel={eventPriceLabel(e.pricePence)}
                 signedIn
                 booked={e.booked}
+                dogs={dogs}
+                bookedDogNames={dogNamesByEvent.get(e.id) ?? null}
+                billingNote={
+                  e.pricePence
+                    ? "It goes on your next invoice and is taken with your usual payment."
+                    : null
+                }
                 defaults={{ name: user.name, email: user.email, phone: user.phone ?? "" }}
               />
             </section>

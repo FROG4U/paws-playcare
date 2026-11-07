@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/Logo";
-import { getSession } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { LoginForm } from "./LoginForm";
 
 export default async function LoginPage() {
-  if (await getSession()) redirect("/dashboard");
+  if (await getCurrentUser()) redirect("/dashboard");
   return (
     <div className="flex flex-1 items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">

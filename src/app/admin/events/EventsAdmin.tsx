@@ -20,6 +20,7 @@ export type SignupLite = {
   dogName: string | null;
   note: string | null;
   whenLabel: string;
+  billedLabel: string | null;
 };
 
 export type EventLite = {
@@ -40,6 +41,7 @@ export type EventLite = {
   active: boolean;
   archived: boolean;
   booked: number;
+  dogsComing: number;
   placesLeft: number | null;
   signups: SignupLite[];
 };
@@ -206,6 +208,7 @@ function EventCard({
               >
                 {e.booked} booked
                 {e.capacity != null ? ` of ${e.capacity}` : ""}
+                {e.dogsComing > 0 ? ` · ${e.dogsComing} dog${e.dogsComing === 1 ? "" : "s"} coming` : ""}
               </button>
               {e.placesLeft === 0 && <span className="ml-2 badge bg-warn/15 text-warn">full</span>}
             </p>
@@ -271,8 +274,18 @@ function EventCard({
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <div>
                     <p className="font-semibold">
-                      {s.name}
-                      {s.dogName ? <span className="text-muted"> with {s.dogName}</span> : ""}
+                      {s.dogName ? (
+                        <>
+                          <Icon name="paw" className="mr-1 inline h-4 w-4 text-brand" />
+                          {s.dogName}
+                          <span className="font-normal text-muted"> · {s.name}</span>
+                        </>
+                      ) : (
+                        s.name
+                      )}
+                      {s.billedLabel && (
+                        <span className="ml-2 badge bg-brand-soft text-brand-dark">{s.billedLabel}</span>
+                      )}
                     </p>
                     <p className="text-muted">
                       {s.email}
@@ -402,32 +415,46 @@ function EventForm({
         </label>
       </div>
 
+      {/* Photo: an obvious drop area rather than a bare file input */}
       <div className="space-y-2">
-        <span className="block text-xs font-semibold text-muted">Photo</span>
-        {preview && !removeImage && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="" className="h-32 w-full max-w-xs rounded-xl object-cover" />
-        )}
-        <input
-          type="file"
-          name="image"
-          accept="image/*"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            setRemoveImage(false);
-            if (!f) {
-              setPreview(event?.imagePath ?? null);
-              return;
-            }
-            const reader = new FileReader();
-            reader.onload = () => setPreview(typeof reader.result === "string" ? reader.result : null);
-            reader.readAsDataURL(f);
-          }}
-          className="block text-sm"
-        />
-        <p className="text-xs text-muted">
-          Any size is fine - it's shrunk and saved as a small WebP automatically.
-        </p>
+        <span className="block text-xs font-semibold text-muted">Event photo</span>
+        <label className="flex cursor-pointer flex-wrap items-center gap-4 rounded-xl border-2 border-dashed border-border bg-background p-4 transition hover:border-brand hover:bg-brand-soft/30">
+          {preview && !removeImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={preview} alt="" className="h-24 w-32 shrink-0 rounded-lg object-cover" />
+          ) : (
+            <span className="grid h-24 w-32 shrink-0 place-items-center rounded-lg bg-mist text-muted">
+              <Icon name="image" className="h-8 w-8" />
+            </span>
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2 font-semibold text-brand">
+              <Icon name="plus" className="h-4 w-4" />
+              {preview && !removeImage ? "Choose a different photo" : "Choose a photo"}
+            </span>
+            <span className="mt-1 block text-xs text-muted">
+              Tap to pick one from your phone or computer. Any size is fine - it&apos;s shrunk and
+              saved as a small WebP automatically.
+            </span>
+          </span>
+          <input
+            type="file"
+            name="image"
+            accept="image/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              setRemoveImage(false);
+              if (!f) {
+                setPreview(event?.imagePath ?? null);
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => setPreview(typeof reader.result === "string" ? reader.result : null);
+              reader.readAsDataURL(f);
+            }}
+            className="sr-only"
+          />
+        </label>
         {event?.imagePath && (
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -443,7 +470,7 @@ function EventForm({
 
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="askDogName" defaultChecked={event?.askDogName ?? true} className="mt-1" />
-        <span>Ask for a dog&apos;s name on the booking form (optional for them to fill in)</span>
+        <span>Ask which of their dogs is coming (they pick from the dogs on their account)</span>
       </label>
 
       <label className="flex items-start gap-2 text-sm">

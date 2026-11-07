@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { Icon } from "@/components/Icon";
-import { getSession } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { LoginForm } from "@/app/login/LoginForm";
 
 export const metadata: Metadata = {
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function StaffLogin() {
-  if (await getSession()) redirect("/dashboard");
+  if (await getCurrentUser()) redirect("/dashboard");
   return (
     <div className="flex flex-1 items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">

@@ -21,6 +21,11 @@ export default async function AdminEventsPage() {
       signups: {
         where: { status: EVENT_SIGNUP_STATUS.BOOKED },
         orderBy: { createdAt: "asc" },
+        include: {
+          invoiceItem: {
+            include: { invoice: { select: { number: true, status: true, paidAt: true } } },
+          },
+        },
       },
     },
   });
@@ -43,6 +48,14 @@ export default async function AdminEventsPage() {
     active: e.active,
     archived: e.archivedAt != null,
     booked: e.signups.length,
+    dogsComing: e.signups.reduce((n, s) => {
+      try {
+        const ids = JSON.parse(s.dogIds || "[]");
+        return n + (Array.isArray(ids) ? ids.length : 0);
+      } catch {
+        return n;
+      }
+    }, 0),
     placesLeft: placesLeft(e.capacity, e.signups.length),
     signups: e.signups.map((s) => ({
       id: s.id,
@@ -52,6 +65,11 @@ export default async function AdminEventsPage() {
       dogName: s.dogName,
       note: s.note,
       whenLabel: formatDateTime(s.createdAt),
+      billedLabel: s.invoiceItem
+        ? s.invoiceItem.invoice.paidAt || s.invoiceItem.invoice.status === "PAID"
+          ? `Paid · ${s.invoiceItem.invoice.number}`
+          : `On invoice ${s.invoiceItem.invoice.number}`
+        : null,
     })),
   }));
 

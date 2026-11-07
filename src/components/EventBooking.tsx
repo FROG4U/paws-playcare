@@ -8,6 +8,8 @@ import { bookEventPlace, cancelEventPlace } from "@/app/(site)/events/actions";
 // Booking a place. Only signed-in clients can book, so the form starts filled
 // in from their account; the dog's name is optional and only asked for when
 // the event is set up that way.
+export type EventDog = { id: string; name: string };
+
 export function EventBooking({
   eventId,
   askDogName,
@@ -15,6 +17,9 @@ export function EventBooking({
   priceLabel,
   signedIn,
   booked,
+  dogs,
+  bookedDogNames,
+  billingNote,
   defaults,
 }: {
   eventId: string;
@@ -23,12 +28,16 @@ export function EventBooking({
   priceLabel: string;
   signedIn: boolean;
   booked: boolean;
+  dogs: EventDog[];              // the client's own dogs
+  bookedDogNames?: string | null; // who they already said is coming
+  billingNote?: string | null;    // how a paid place will be charged
   defaults: { name: string; email: string; phone: string };
 }) {
   const [name, setName] = useState(defaults.name);
   const [email, setEmail] = useState(defaults.email);
   const [phone, setPhone] = useState(defaults.phone);
-  const [dogName, setDogName] = useState("");
+  // One dog is the norm, so pre-tick it when that's all they have.
+  const [dogIds, setDogIds] = useState<string[]>(dogs.length === 1 ? [dogs[0].id] : []);
   const [note, setNote] = useState("");
   const [done, setDone] = useState(booked);
   const [message, setMessage] = useState<string | null>(null);
@@ -57,7 +66,10 @@ export function EventBooking({
           You&apos;re booked in
         </p>
         <p className="text-sm text-muted">
-          {message ?? "We've got your place saved. We'll see you there!"}
+          {message ??
+            (bookedDogNames
+              ? `We've got your place saved, with ${bookedDogNames}. We'll see you there!`
+              : "We've got your place saved. We'll see you there!")}
         </p>
         <button
           onClick={() =>
@@ -94,7 +106,9 @@ export function EventBooking({
   return (
     <div className="card space-y-3">
       <h2 className="text-lg font-bold">Book your place</h2>
-      <p className="text-sm text-muted">{priceLabel}.</p>
+      <p className="text-sm text-muted">
+        {priceLabel}.{billingNote ? ` ${billingNote}` : ""}
+      </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
@@ -114,20 +128,46 @@ export function EventBooking({
           <span className="mb-1 block text-xs font-semibold text-muted">Phone</span>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} className="input w-full" />
         </label>
-        {askDogName && (
-          <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold text-muted">
-              Dog&apos;s name (optional)
-            </span>
-            <input
-              value={dogName}
-              onChange={(e) => setDogName(e.target.value)}
-              placeholder="Who's coming with you?"
-              className="input w-full"
-            />
-          </label>
-        )}
       </div>
+
+      {askDogName && (
+        <div>
+          <p className="mb-1.5 text-xs font-semibold text-muted">
+            Which dog is coming? {dogs.length > 1 && "Pick as many as are joining you."}
+          </p>
+          {dogs.length === 0 ? (
+            <p className="text-sm text-muted">
+              There aren&apos;t any dogs on your account yet - add one in your profile and we&apos;ll
+              know who to expect.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {dogs.map((d) => {
+                const on = dogIds.includes(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() =>
+                      setDogIds((prev) =>
+                        prev.includes(d.id) ? prev.filter((x) => x !== d.id) : [...prev, d.id]
+                      )
+                    }
+                    className={
+                      on
+                        ? "inline-flex items-center gap-1.5 rounded-full bg-brand px-3.5 py-1.5 text-sm font-bold text-white"
+                        : "inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-semibold text-muted hover:border-brand hover:text-brand"
+                    }
+                  >
+                    <Icon name="paw" className="h-3.5 w-3.5" />
+                    {d.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <label className="block text-sm">
         <span className="mb-1 block text-xs font-semibold text-muted">
@@ -140,7 +180,7 @@ export function EventBooking({
         onClick={() =>
           start(async () => {
             setError(null);
-            const res = await bookEventPlace(eventId, { name, email, phone, dogName, note });
+            const res = await bookEventPlace(eventId, { name, email, phone, dogIds, note });
             if (res.ok) {
               setDone(true);
               setMessage(res.message);

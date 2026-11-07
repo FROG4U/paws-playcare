@@ -44,6 +44,13 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   if (!event) notFound();
 
   const user = await getCurrentUser();
+  const dogs = user
+    ? await prisma.dog.findMany({
+        where: { ownerId: user.id },
+        select: { id: true, name: true },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
   const past = isPastEvent(event.date);
   const hidden = !event.active || event.archivedAt != null;
 
@@ -116,6 +123,13 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             priceLabel={eventPriceLabel(event.pricePence)}
             signedIn={!!user}
             booked={mine?.status === EVENT_SIGNUP_STATUS.BOOKED}
+            dogs={dogs}
+            bookedDogNames={mine?.dogName ?? null}
+            billingNote={
+              event.pricePence
+                ? "It goes on your next invoice and is taken with your usual payment."
+                : null
+            }
             defaults={{
               name: user?.name ?? "",
               email: user?.email ?? "",
