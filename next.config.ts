@@ -35,6 +35,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Admin forms post their photo through a server action. The default cap is
+    // 1 MB, which a single phone photo blows straight past: the whole save is
+    // rejected with a 413 and everything typed into the form is lost. Photos
+    // are shrunk in the browser first, so this is only a safety net.
+    serverActions: { bodySizeLimit: "12mb" },
+  },
   // These read data files from node_modules at runtime — keep them out of the
   // bundle so those reads work in the server build.
   serverExternalPackages: ["pdfkit", "sanitize-html"],

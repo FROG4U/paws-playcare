@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
+import { shrinkImage } from "@/lib/shrink-image";
 import {
   saveEvent,
   setEventActive,
@@ -59,11 +60,22 @@ export function EventsAdmin({ events, todayIso }: { events: EventLite[]; todayIs
     setError(null);
     setMessage(null);
     start(async () => {
-      const res = await fn();
-      if (res.ok) {
-        setMessage(res.message);
-        setEditing(null);
-      } else setError(res.error);
+      try {
+        const res = await fn();
+        if (res.ok) {
+          setMessage(res.message);
+          setEditing(null);
+        } else setError(res.error);
+      } catch (e) {
+        // A rejected upload (too big) or a dropped connection: say so and keep
+        // everything they've typed on screen so nothing is lost.
+        const tooBig = e instanceof Error && /body|413|limit/i.test(e.message);
+        setError(
+          tooBig
+            ? "That photo was too big to upload. Pick a smaller one and your details will still be here."
+            : "That didn't save - check your connection and press save again. Nothing you've typed has been lost."
+        );
+      }
     });
   }
 
@@ -326,6 +338,8 @@ function EventForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [preview, setPreview] = useState<string | null>(event?.imagePath ?? null);
   const [removeImage, setRemoveImage] = useState(false);
+  const [photoNote, setPhotoNote] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
 
   return (
     <form
@@ -441,20 +455,41 @@ function EventForm({
             type="file"
             name="image"
             accept="image/*"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
+            onChange={async (e) => {
+              const input = e.target;
+              const f = input.files?.[0];
               setRemoveImage(false);
+              setPhotoNote(null);
               if (!f) {
                 setPreview(event?.imagePath ?? null);
                 return;
               }
+
+              // Shrink before it ever leaves the phone, so a big photo can't
+              // blow the upload limit and lose the rest of the form.
+              setPreparing(true);
+              const small = await shrinkImage(f);
+              if (small !== f) {
+                const dt = new DataTransfer();
+                dt.items.add(small);
+                input.files = dt.files;
+                setPhotoNote(
+                  `Photo ready: ${(f.size / 1024 / 1024).toFixed(1)} MB shrunk to ${Math.round(
+                    small.size / 1024
+                  )} KB.`
+                );
+              }
+              setPreparing(false);
+
               const reader = new FileReader();
               reader.onload = () => setPreview(typeof reader.result === "string" ? reader.result : null);
-              reader.readAsDataURL(f);
+              reader.readAsDataURL(small);
             }}
             className="sr-only"
           />
         </label>
+        {preparing && <p className="text-xs text-muted">Getting the photo ready...</p>}
+        {photoNote && <p className="text-xs text-brand">{photoNote}</p>}
         {event?.imagePath && (
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -481,8 +516,8 @@ function EventForm({
       </label>
 
       <div className="flex gap-2">
-        <button type="submit" disabled={pending} className="btn-primary disabled:opacity-50">
-          {pending ? "Saving..." : event ? "Save event" : "Create event"}
+        <button type="submit" disabled={pending || preparing} className="btn-primary disabled:opacity-50">
+          {pending ? "Saving..." : preparing ? "Getting the photo ready..." : event ? "Save event" : "Create event"}
         </button>
         <button type="button" onClick={onCancel} className="btn-ghost">
           Cancel
