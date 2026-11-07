@@ -45,7 +45,14 @@ export function eventWhen(e: { date: Date; startTime: string | null; endTime: st
 
 export function eventPriceLabel(pricePence: number | null): string {
   if (pricePence == null) return "Free";
-  return `${formatMoney(pricePence)} per person`;
+  return `${formatMoney(pricePence)} per dog`;
+}
+
+// What a place costs: the per-dog price times however many dogs are coming.
+// A booking with no dogs on it still counts as one.
+export function eventPriceFor(pricePence: number | null, dogCount: number): number {
+  if (pricePence == null || pricePence <= 0) return 0;
+  return pricePence * Math.max(1, dogCount);
 }
 
 // Places left, or null when the event has no limit.

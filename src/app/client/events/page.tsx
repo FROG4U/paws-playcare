@@ -90,6 +90,7 @@ export default async function ClientEventsPage() {
                 booked={e.booked}
                 dogs={dogs}
                 bookedDogNames={dogNamesByEvent.get(e.id) ?? null}
+                pricePence={e.pricePence}
                 billingNote={
                   e.pricePence
                     ? "It goes on your next invoice and is taken with your usual payment."

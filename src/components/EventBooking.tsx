@@ -10,6 +10,9 @@ import { bookEventPlace, cancelEventPlace } from "@/app/(site)/events/actions";
 // the event is set up that way.
 export type EventDog = { id: string; name: string };
 
+const money = (pence: number) =>
+  `£${(pence / 100).toFixed(2)}`;
+
 export function EventBooking({
   eventId,
   askDogName,
@@ -20,6 +23,7 @@ export function EventBooking({
   dogs,
   bookedDogNames,
   billingNote,
+  pricePence,
   defaults,
 }: {
   eventId: string;
@@ -31,6 +35,7 @@ export function EventBooking({
   dogs: EventDog[];              // the client's own dogs
   bookedDogNames?: string | null; // who they already said is coming
   billingNote?: string | null;    // how a paid place will be charged
+  pricePence?: number | null;     // per dog, for the running total
   defaults: { name: string; email: string; phone: string };
 }) {
   const [name, setName] = useState(defaults.name);
@@ -175,6 +180,13 @@ export function EventBooking({
         </span>
         <input value={note} onChange={(e) => setNote(e.target.value)} className="input w-full" />
       </label>
+
+      {!!pricePence && dogIds.length > 0 && (
+        <p className="rounded-lg bg-background px-3 py-2 text-sm">
+          {dogIds.length} dog{dogIds.length > 1 ? "s" : ""} × {money(pricePence)} ={" "}
+          <strong>{money(pricePence * dogIds.length)}</strong>
+        </p>
+      )}
 
       <button
         onClick={() =>

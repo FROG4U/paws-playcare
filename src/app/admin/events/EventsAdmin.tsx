@@ -387,7 +387,7 @@ function EventForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
           <span className="mb-1 block text-xs font-semibold text-muted">
-            Price per person (leave blank if it's free)
+            Price per dog (leave blank if it's free)
           </span>
           <input
             type="number"

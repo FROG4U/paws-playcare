@@ -288,7 +288,15 @@ export async function addEventSignupToInvoice(signupId: string): Promise<string 
   });
   if (!signup || !signup.user) return null;
   if (signup.invoiceItem) return signup.invoiceItem.invoiceId; // already billed
-  const amount = signup.event.pricePence ?? 0;
+
+  // Priced per dog, so a place for two dogs costs twice as much.
+  let dogCount = 1;
+  try {
+    const ids = JSON.parse(signup.dogIds || "[]");
+    if (Array.isArray(ids) && ids.length) dogCount = ids.length;
+  } catch {}
+  const unit = signup.event.pricePence ?? 0;
+  const amount = unit * dogCount;
   if (amount <= 0) return null; // free event
 
   const cadence = signup.user.payCadence;
@@ -318,11 +326,12 @@ export async function addEventSignupToInvoice(signupId: string): Promise<string 
   }
 
   const dogs = signup.dogName ? ` · ${signup.dogName}` : "";
+  const perDog = dogCount > 1 ? ` · ${dogCount} dogs` : "";
   await prisma.invoiceItem.create({
     data: {
       invoiceId: invoice.id,
       eventSignupId: signup.id,
-      description: `${signup.event.title} (event) · ${formatDate(signup.event.date)}${dogs}`,
+      description: `${signup.event.title} (event) · ${formatDate(signup.event.date)}${dogs}${perDog}`,
       date: signup.event.date,
       amount,
     },

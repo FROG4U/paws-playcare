@@ -90,11 +90,15 @@ export async function bookEventPlace(
     ? await prisma.eventSignup.update({ where: { id: existing.id }, data })
     : await prisma.eventSignup.create({ data: { ...data, eventId, userId: user.id } });
 
-  // Bill the place on their usual pay cycle, like a walk.
+  // Bill the place on their usual pay cycle, like a walk. Priced per dog, so
+  // bringing two costs twice as much.
   let billed: string | null = null;
   if (price > 0) {
     await addEventSignupToInvoice(signup.id);
-    billed = ` ${formatMoney(price)} has been added to your invoice, taken on ${formatDate(
+    const total = price * Math.max(1, chosen.length);
+    billed = ` ${formatMoney(total)}${
+      chosen.length > 1 ? ` (${chosen.length} dogs at ${formatMoney(price)} each)` : ""
+    } has been added to your invoice, taken on ${formatDate(
       nextPaymentDate(user.payCadence)
     )} with your usual payment.`;
   }
@@ -102,7 +106,7 @@ export async function bookEventPlace(
   await notifyAdmins({
     type: NOTIF_TYPE.BOOKING_CREATED,
     title: `${name} booked onto ${event.title}`,
-    body: `${formatDate(event.date)}${data.dogName ? ` · with ${data.dogName}` : ""}. ${email}${data.phone ? ` · ${data.phone}` : ""}${price > 0 ? ` · ${formatMoney(price)} on their invoice` : ""}`,
+    body: `${formatDate(event.date)}${data.dogName ? ` · with ${data.dogName}` : ""}. ${email}${data.phone ? ` · ${data.phone}` : ""}${price > 0 ? ` · ${formatMoney(price * Math.max(1, chosen.length))} on their invoice` : ""}`,
     link: "/admin/events",
   });
 

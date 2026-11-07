@@ -125,6 +125,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             booked={mine?.status === EVENT_SIGNUP_STATUS.BOOKED}
             dogs={dogs}
             bookedDogNames={mine?.dogName ?? null}
+            pricePence={event.pricePence}
             billingNote={
               event.pricePence
                 ? "It goes on your next invoice and is taken with your usual payment."
