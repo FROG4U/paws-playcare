@@ -3,12 +3,17 @@ import { Logo } from "./Logo";
 import { Icon } from "./Icon";
 import { SiteNavBar, type SiteNavItem } from "./SiteNav";
 import { getNavPages } from "@/lib/pages";
+import { getLiveEvents } from "@/lib/events";
 import { getSettings } from "@/lib/pricing";
 import { getSession } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 
 export async function SiteHeader() {
-  const [nav, session] = await Promise.all([getNavPages(), getSession()]);
+  const [nav, session, liveEvents] = await Promise.all([
+    getNavPages(),
+    getSession(),
+    getLiveEvents().catch(() => []),
+  ]);
   const accountHref =
     session?.role === ROLES.ADMIN
       ? "/admin"
@@ -25,6 +30,8 @@ export async function SiteHeader() {
       href: p.slug === "home" ? "/" : `/${p.slug}`,
       label: p.navLabel,
     })),
+    // Only worth a menu slot when something is actually on.
+    ...(liveEvents.length ? [{ href: "/events", label: "Events" }] : []),
     { href: "/field", label: "Book the Field" },
     { href: "/online-booking-form", label: "Booking Form" },
   ];

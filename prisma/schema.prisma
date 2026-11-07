@@ -73,6 +73,7 @@ model User {
   notifications   Notification[]
   changeRequests  ChangeRequest[]  @relation("RequestedBy")
   slotRequests    SlotChangeRequest[] @relation("ClientSlotRequests")
+  eventSignups    EventSignup[]    @relation("ClientEventSignups")
 
   // Field/playground-hire bookings (role FIELD_CLIENT). Nullable link so a
   // booking survives if the account is later deleted (kept as guest history).
@@ -587,4 +588,54 @@ model SlotChangeRequest {
   resolvedById String?
   resolvedAt   DateTime?
   createdAt    DateTime  @default(now())
+}
+
+// A one-off event (fun day, group walk, puppy social). Shown on the public
+// Events page while it's switched on and still to come; archived by itself
+// once the day has passed.
+model Event {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  title       String
+  description String?
+  imagePath   String? // compressed WebP in /uploads
+  address     String?
+
+  date      DateTime // the day it runs (UTC midnight)
+  startTime String?  // "10:00"
+  endTime   String?  // "13:00"
+
+  pricePence Int? // per person; null = free / not shown
+  capacity   Int? // places on offer; null = unlimited
+  askDogName Boolean @default(true) // show the "dog's name" box on the form
+
+  active     Boolean   @default(true) // the on/off switch
+  archivedAt DateTime? // set once the date has passed
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  signups   EventSignup[]
+}
+
+// Someone who has booked a place. Only signed-in clients can book, so the
+// account is always known; the contact details are snapshotted in case they
+// change their profile later.
+model EventSignup {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation("ClientEventSignups", fields: [userId], references: [id], onDelete: SetNull)
+
+  name    String
+  email   String
+  phone   String?
+  dogName String?
+  note    String?
+
+  status    String   @default("BOOKED") // BOOKED | CANCELLED
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
 }

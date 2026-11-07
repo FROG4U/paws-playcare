@@ -4,6 +4,7 @@ import { releaseStaleFieldHolds } from "@/lib/field";
 import { reconcilePendingFieldBookings } from "@/lib/field-run";
 import { rolloverOngoingBookings } from "@/lib/rollover";
 import { syncBankHolidays } from "@/lib/bankHolidays";
+import { archivePastEvents } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,9 @@ async function run(req: Request) {
   // Keep the UK bank-holiday list current so recurring bookings always skip
   // them (best-effort — ignore feed hiccups). Run BEFORE the rollover.
   const bankHolidaySync = await syncBankHolidays().then((r) => r.added).catch(() => null);
+  const events = await archivePastEvents(now);
   const rolled = await rolloverOngoingBookings(now);
-  return Response.json({ ok: true, ...cards, ...noCard, ...blocks, ...fieldPayments, releasedFieldHolds, bankHolidaySync, ...rolled });
+  return Response.json({ ok: true, ...cards, ...noCard, ...blocks, ...fieldPayments, releasedFieldHolds, bankHolidaySync, ...events, ...rolled });
 }
 
 export const GET = run;
