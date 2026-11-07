@@ -12,7 +12,7 @@ import {
   placesLeft,
   isPastEvent,
 } from "@/lib/events";
-import { EventBooking } from "./EventBooking";
+import { EventBooking } from "@/components/EventBooking";
 
 export const dynamic = "force-dynamic";
 

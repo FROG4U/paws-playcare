@@ -7,6 +7,8 @@ import { formatMoney } from "@/lib/money";
 import { RequestPauseButton } from "@/components/PauseToggle";
 import { EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
+import { EventPopup, type PopupEvent } from "@/components/EventPopup";
+import { getEventsForClient, eventWhen, eventPriceLabel } from "@/lib/events";
 
 export default async function ClientHome() {
   const user = await requireClient();
@@ -29,8 +31,23 @@ export default async function ClientHome() {
     prisma.booking.count({ where: { clientId: user.id, status: "PAUSED" } }),
   ]);
 
+  // What's on that they haven't booked yet - shown as a pop-up once each.
+  const liveEvents = await getEventsForClient(user.id);
+  const popupEvents: PopupEvent[] = liveEvents
+    .filter((e) => !e.booked)
+    .map((e) => ({
+      id: e.id,
+      title: e.title,
+      whenLabel: eventWhen(e),
+      priceLabel: eventPriceLabel(e.pricePence),
+      address: e.address,
+      imagePath: e.imagePath,
+    }));
+
   return (
     <div className="space-y-5">
+      {popupEvents.length > 0 && <EventPopup events={popupEvents} />}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold">Hi, {user.name.split(" ")[0]} 👋</h1>
         {user.status === USER_STATUS.ACTIVE && (

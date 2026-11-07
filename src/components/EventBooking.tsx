@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
-import { bookEventPlace, cancelEventPlace } from "../actions";
+import { bookEventPlace, cancelEventPlace } from "@/app/(site)/events/actions";
 
 // Booking a place. Only signed-in clients can book, so the form starts filled
 // in from their account; the dog's name is optional and only asked for when

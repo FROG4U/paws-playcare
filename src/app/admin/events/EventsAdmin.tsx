@@ -319,7 +319,6 @@ function EventForm({
       ref={formRef}
       action={(fd) => onSubmit(fd)}
       className="card space-y-4"
-      encType="multipart/form-data"
     >
       <h2 className="text-base font-bold">{event ? "Edit event" : "New event"}</h2>
       {event && <input type="hidden" name="id" value={event.id} />}
@@ -415,8 +414,14 @@ function EventForm({
           accept="image/*"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            setPreview(f ? URL.createObjectURL(f) : event?.imagePath ?? null);
             setRemoveImage(false);
+            if (!f) {
+              setPreview(event?.imagePath ?? null);
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => setPreview(typeof reader.result === "string" ? reader.result : null);
+            reader.readAsDataURL(f);
           }}
           className="block text-sm"
         />

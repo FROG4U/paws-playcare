@@ -7,13 +7,15 @@ import { ROLES } from "@/lib/constants";
 import { saveCompressedImage, deleteUpload } from "@/lib/upload";
 import { atUtcMidnight } from "@/lib/dates";
 import { poundsToPence } from "@/lib/money";
-import { uniqueEventSlug } from "@/lib/events";
+import { uniqueEventSlug, announceEvent } from "@/lib/events";
 
 export type Result = { ok: true; message: string } | { ok: false; error: string };
 
 function refresh(slug?: string) {
   revalidatePath("/admin/events");
   revalidatePath("/events");
+  revalidatePath("/client");
+  revalidatePath("/client/events");
   if (slug) revalidatePath(`/events/${slug}`);
 }
 
@@ -106,24 +108,46 @@ export async function saveEvent(fd: FormData): Promise<Result> {
       where: { id: existing.id },
       data: { ...data, slug, ...(imagePath !== undefined ? { imagePath } : {}) },
     });
+    const told = await announceEvent(existing.id);
     refresh(slug);
-    return { ok: true, message: "Event saved." };
+    return {
+      ok: true,
+      message: told.announcedTo
+        ? `Event saved and ${told.announcedTo} client${told.announcedTo === 1 ? "" : "s"} told about it.`
+        : "Event saved.",
+    };
   }
 
   const slug = await uniqueEventSlug(title);
-  await prisma.event.create({
+  const created = await prisma.event.create({
     data: { ...data, slug, imagePath: imagePath ?? null, archivedAt: null },
   });
+  const told = await announceEvent(created.id);
   refresh(slug);
-  return { ok: true, message: "Event created." };
+  return {
+    ok: true,
+    message: told.announcedTo
+      ? `Event created and ${told.announcedTo} client${told.announcedTo === 1 ? "" : "s"} told about it.`
+      : "Event created. Switch it on when you're ready and your clients will be told.",
+  };
 }
 
 // The on/off switch.
 export async function setEventActive(id: string, active: boolean): Promise<Result> {
   await requireRole([ROLES.ADMIN]);
   const event = await prisma.event.update({ where: { id }, data: { active } });
+  const told = active ? await announceEvent(id) : { announcedTo: 0 };
   refresh(event.slug);
-  return { ok: true, message: active ? "Event is live on the site." : "Event taken off the site." };
+  revalidatePath("/client");
+  revalidatePath("/client/events");
+  return {
+    ok: true,
+    message: !active
+      ? "Event taken off the site."
+      : told.announcedTo
+        ? `Event is live, and ${told.announcedTo} client${told.announcedTo === 1 ? "" : "s"} have been told.`
+        : "Event is live on the site.",
+  };
 }
 
 // Put it back on the site after it was archived (e.g. the date moved).

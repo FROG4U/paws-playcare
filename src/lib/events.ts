@@ -73,3 +73,48 @@ export async function archivePastEvents(now: Date = new Date()): Promise<{ event
   });
   return { eventsArchived: res.count };
 }
+
+// Tell the clients about an event the first time it goes live: an in-app
+// notification each (which also fires their phone push), and the pop-up on
+// their dashboard. Only ever announced once, so flicking the switch off and
+// on again doesn't pester anyone twice.
+export async function announceEvent(eventId: string): Promise<{ announcedTo: number }> {
+  const { notify } = await import("./notifications");
+  const { NOTIF_TYPE, ROLES, USER_STATUS } = await import("./constants");
+
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) return { announcedTo: 0 };
+  if (!event.active || event.announcedAt || event.archivedAt) return { announcedTo: 0 };
+  if (isPastEvent(event.date)) return { announcedTo: 0 };
+
+  const clients = await prisma.user.findMany({
+    where: { role: ROLES.CLIENT, status: USER_STATUS.ACTIVE, archivedAt: null },
+    select: { id: true },
+  });
+
+  const price = event.pricePence == null ? "Free" : eventPriceLabel(event.pricePence);
+  for (const c of clients) {
+    await notify({
+      userId: c.id,
+      type: NOTIF_TYPE.BOOKING_CREATED,
+      title: `New event: ${event.title}`,
+      body: `${eventWhen(event)} · ${price}. Tap to book your place.`,
+      link: `/client/events`,
+    });
+  }
+
+  await prisma.event.update({ where: { id: eventId }, data: { announcedAt: new Date() } });
+  return { announcedTo: clients.length };
+}
+
+// Events a client should be shown, with whether they've already booked.
+export async function getEventsForClient(userId: string) {
+  const events = await getLiveEvents();
+  if (events.length === 0) return [];
+  const mine = await prisma.eventSignup.findMany({
+    where: { userId, eventId: { in: events.map((e) => e.id) }, status: EVENT_SIGNUP_STATUS.BOOKED },
+    select: { eventId: true },
+  });
+  const booked = new Set(mine.map((m) => m.eventId));
+  return events.map((e) => ({ ...e, booked: booked.has(e.id) }));
+}

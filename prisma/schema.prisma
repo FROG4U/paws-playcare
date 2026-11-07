@@ -611,6 +611,9 @@ model Event {
 
   active     Boolean   @default(true) // the on/off switch
   archivedAt DateTime? // set once the date has passed
+  // When clients were told about it, so switching it off and on again doesn't
+  // announce the same event twice.
+  announcedAt DateTime?
 
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt

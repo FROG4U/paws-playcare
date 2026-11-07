@@ -7,6 +7,7 @@ const items: NavItem[] = [
   { href: "/client", label: "Home", icon: "home" },
   { href: "/client/book", label: "Book", icon: "calendar" },
   { href: "/client/walks", label: "My walks", icon: "paw" },
+  { href: "/client/events", label: "Events", icon: "sparkles" },
   { href: "/client/invoices", label: "Invoices", icon: "receipt" },
   { href: "/client/payment", label: "Payment", icon: "card" },
   { href: "/client/profile", label: "Profile", icon: "user" },
