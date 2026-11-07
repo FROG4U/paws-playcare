@@ -217,7 +217,7 @@ function EventCard({
 
         <div className="flex flex-wrap items-center gap-2">
           <Link href={`/events/${e.slug}`} className="btn-ghost text-sm">
-            View page
+            {e.active && !archived ? "View page" : "Preview"}
           </Link>
           <button onClick={onEdit} className="btn-outline text-sm">
             <Icon name="pencil" className="h-4 w-4" /> Edit

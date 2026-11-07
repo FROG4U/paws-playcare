@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { ROLES } from "@/lib/constants";
 import { renderMarkdown } from "@/lib/pages";
 import { Icon } from "@/components/Icon";
 import {
@@ -55,13 +56,15 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const hidden = !event.active || event.archivedAt != null;
 
   // An event that's off or finished stays reachable by link for anyone already
-  // booked, but it isn't open to new bookings.
+  // booked, but it isn't open to new bookings. Staff can always open it, so
+  // "View page" works as a preview before it goes live.
   const mine = user
     ? await prisma.eventSignup.findUnique({
         where: { eventId_userId: { eventId: event.id, userId: user.id } },
       })
     : null;
-  if ((hidden || past) && !mine) notFound();
+  const isStaff = user?.role === ROLES.ADMIN || user?.role === ROLES.WORKER;
+  if ((hidden || past) && !mine && !isStaff) notFound();
 
   const left = placesLeft(event.capacity, event._count.signups);
 
@@ -78,6 +81,15 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
       {event.imagePath && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={event.imagePath} alt="" className="mt-4 h-64 w-full rounded-2xl object-cover sm:h-80" />
+      )}
+
+      {isStaff && (hidden || past) && (
+        <p className="mt-4 flex items-start gap-2 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">
+          <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
+          {past
+            ? "This event has been and gone, so it's no longer on the website. Only you can see this page."
+            : "This event is switched off, so it isn't on the website yet. Only you can see this page - turn it on from the Events screen when you're ready."}
+        </p>
       )}
 
       <h1 className="mt-6 text-3xl font-extrabold text-balance">{event.title}</h1>
@@ -115,6 +127,10 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
       <div className="mt-8">
         {past ? (
           <p className="card text-sm text-muted">This event has already taken place.</p>
+        ) : isStaff && hidden ? (
+          <p className="card text-sm text-muted">
+            Bookings open to your clients as soon as you switch this event on.
+          </p>
         ) : (
           <EventBooking
             eventId={event.id}
